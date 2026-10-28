@@ -59,7 +59,7 @@
   const TOTAL_MULT_MAX = 20;
   const SLIDE_TIME_SCALE = 1.15;
   const CURL_ACCEL = 0.90;
-  const FULL_SPEED = 9.2;
+  const FULL_SPEED = 11.5;
   const TARGET_SCORE = 6000;
   const THREE_STAR_SCORE = 10000;
   const BEST_KEY = 'curling-gates-best-v1';
@@ -218,6 +218,15 @@
     const ppm = ppmAt(y);
     const sx = W / 2 + x * ppm;
     return { sx, sy, ppm, scale: ppm / (W * 1.02 / (WORLD.halfWidth * 2)) };
+  }
+
+  function unproject(sx, sy) {
+    const horizon = H * 0.08;
+    const ratio = clamp((H - sy) / Math.max(1, H - horizon), 0, 1.05);
+    const t = Math.pow(ratio, 1 / 0.92);
+    const y = clamp(t * WORLD.length, 0, WORLD.length * 1.05);
+    const x = (sx - W / 2) / Math.max(1, ppmAt(y));
+    return { x, y };
   }
 
   // =========================================================================
@@ -1303,10 +1312,9 @@
   function updateAimAngle() {
     const stone = game.stones[0];
     if (!stone) return;
-    const p = project(stone.x, stone.y);
-    const dx = game.aim.curX - p.sx;
-    const dy = p.sy - game.aim.curY;
-    game.aim.angle = clamp(Math.atan2(dx, Math.max(20, dy)), -0.62, 0.62);
+    const target = unproject(game.aim.curX, game.aim.curY);
+    const raw = Math.atan2(target.x - stone.x, target.y - stone.y);
+    game.aim.angle = clamp(Number.isFinite(raw) ? raw : 0, -1.15, 1.15);
   }
 
   function setSpin(v) {
@@ -2511,32 +2519,56 @@
 
   function drawAimLine(p, r) {
     if (!game.aim.charging) return;
-    const tx = game.aim.curX;
-    const ty = game.aim.curY;
-    const dx = tx - p.sx;
-    const dy = ty - p.sy;
-    const len = Math.hypot(dx, dy);
-    if (len < 14) return;
-
-    const nx = dx / len;
-    const ny = dy / len;
-    const far = Math.max(W, H) * 1.3;
-    const ex = p.sx + nx * far;
-    const ey = p.sy + ny * far;
+    const stone = game.stones[0];
+    if (!stone) return;
+    const pts = ghostPath(1, game.aim.angle);
+    if (pts.length < 2) return;
+    const n = pts.length;
+    const solid = Math.max(2, Math.floor(n * 0.72));
 
     ctx.save();
-    ctx.setLineDash([10, 8]);
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = 'rgba(95,227,255,0.95)';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.shadowColor = 'rgba(95,227,255,0.65)';
     ctx.shadowBlur = 10;
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = 'rgba(95,227,255,0.92)';
     ctx.beginPath();
     ctx.moveTo(p.sx, p.sy);
-    ctx.lineTo(ex, ey);
+    for (let i = 0; i < solid; i++) {
+      const q = project(pts[i].x, pts[i].y);
+      ctx.lineTo(q.sx, q.sy);
+    }
     ctx.stroke();
 
+    // 后半段淡出，提示真实停点
     ctx.shadowBlur = 0;
+    ctx.setLineDash([4, 8]);
+    ctx.strokeStyle = 'rgba(95,227,255,0.28)';
+    ctx.beginPath();
+    const firstTail = project(pts[solid - 1].x, pts[solid - 1].y);
+    ctx.moveTo(firstTail.sx, firstTail.sy);
+    for (let i = solid; i < n; i++) {
+      const q = project(pts[i].x, pts[i].y);
+      ctx.lineTo(q.sx, q.sy);
+    }
+    ctx.stroke();
+
+    // ghost stone at predicted stop
+    const last = pts[n - 1];
+    const q = project(last.x, last.y);
     ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(q.sx, q.sy, Math.max(3, stone.r * q.ppm), 0, TAU);
+    ctx.fillStyle = 'rgba(95,227,255,0.08)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(95,227,255,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // reticle at the finger
+    const tx = game.aim.curX;
+    const ty = game.aim.curY;
     ctx.strokeStyle = 'rgba(234,247,255,0.95)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -2562,47 +2594,7 @@
     const p = project(stone.x, stone.y);
     const r = Math.max(4, stone.r * p.ppm);
 
-    if (game.aim.charging) {
-      const pts = ghostPath(1, game.aim.angle);
-      if (pts.length > 1) {
-        const n = pts.length;
-        const solid = Math.max(2, Math.floor(n * 0.55));
-        ctx.save();
-        ctx.setLineDash([4, 7]);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'rgba(95,227,255,0.30)';
-        ctx.beginPath();
-        for (let i = 0; i < solid; i++) {
-          const q = project(pts[i].x, pts[i].y);
-          if (i === 0) ctx.moveTo(q.sx, q.sy);
-          else ctx.lineTo(q.sx, q.sy);
-        }
-        ctx.stroke();
-
-        // 后半段淡出，提示真实停点
-        ctx.strokeStyle = 'rgba(95,227,255,0.10)';
-        ctx.beginPath();
-        for (let i = solid - 1; i < n; i++) {
-          const q = project(pts[i].x, pts[i].y);
-          if (i === solid - 1) ctx.moveTo(q.sx, q.sy);
-          else ctx.lineTo(q.sx, q.sy);
-        }
-        ctx.stroke();
-
-        // ghost stone at predicted stop
-        const last = pts[n - 1];
-        const q = project(last.x, last.y);
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.arc(q.sx, q.sy, Math.max(3, stone.r * q.ppm), 0, TAU);
-        ctx.fillStyle = 'rgba(95,227,255,0.08)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(95,227,255,0.35)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
-      }
-    } else {
+    if (!game.aim.charging) {
       // idle hint arrow
       const a = 0.5 + Math.sin(game.time * 3) * 0.2;
       ctx.save();
@@ -2886,6 +2878,9 @@
         stone: s,
         aim: game.aim
       };
+    },
+    projectAt(x, y) {
+      return project(x, y);
     },
     info() {
       return {
