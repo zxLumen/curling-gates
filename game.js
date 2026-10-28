@@ -20,6 +20,7 @@
   const hintEl = document.getElementById('hint');
   const overlayEl = document.getElementById('overlay');
   const startBtn = document.getElementById('startBtn');
+  const shareBtn = document.getElementById('shareBtn');
   const towerBtn = document.getElementById('towerBtn');
   const homeBtn = document.getElementById('homeBtn');
   const footnoteEl = document.getElementById('footnote');
@@ -68,8 +69,9 @@
   const BEST_KEY = 'curling-gates-best-v1';
   const SPIN_KEY = 'curling-gates-spin-v1';
   const TOWER_BEST_KEY = 'curling-gates-tower-best-v1';
-  const TOWER_BASE_DEF = 2000;
-  const TOWER_DEF_GROWTH = 1.55;
+  const TOWER_BASE_DEF = 800;
+  const TOWER_DEF_GROWTH = 1.5;
+  const QUICK_SEED = 20261028;
 
   const BALL_TYPES = {
     standard: { name: '标准球', color: '#ff6b4a', radius: 1.0, atk: 0.0, desc: '均衡，稳定得分' },
@@ -118,6 +120,24 @@
 
   function fmt(n) {
     return Math.round(n).toLocaleString('en-US');
+  }
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hashSeed(a, b) {
+    let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 1, 0xc2b2ae35);
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x7feb352d);
+    h ^= h >>> 15;
+    return h >>> 0;
   }
 
   function loadBest() {
@@ -370,14 +390,13 @@
       hearts: 3,
       floorDamage: 0,
       bestFloor: 0,
-      balls: [
-        { id: 'standard', level: 1 },
-        { id: 'giant', level: 1 },
-        { id: 'curl', level: 1 },
-        { id: 'split', level: 1 }
-      ],
+      runSeed: 0,
+      floorSeed: QUICK_SEED,
+      options: [],
+      balls: [{ id: 'standard', level: 1 }],
       selectedBall: 0,
-      upgraded: false
+      upgraded: false,
+      chosenOption: -1
     },
     time: 0
   };
@@ -424,7 +443,8 @@
     };
   }
 
-  function buildPins() {
+  function buildPins(seed) {
+    const rng = mulberry32(hashSeed(seed || QUICK_SEED, 777));
     const pins = [];
     const rows = [
       { dy: -2.1, n: 3 },
@@ -435,42 +455,93 @@
       { dy: 1.4, n: 4 },
       { dy: 2.1, n: 3 }
     ];
-    const gap = 0.55;
+    const gap = 0.52 + rng() * 0.06;
+    const shift = (rng() - 0.5) * 0.5;
     for (const row of rows) {
       for (let i = 0; i < row.n; i++) {
-        const x = (i - (row.n - 1) / 2) * gap;
-        pins.push(makePin(x, WORLD.houseY + row.dy));
+        const x =
+          shift +
+          (i - (row.n - 1) / 2) * gap +
+          (rng() - 0.5) * 0.16;
+        const y = WORLD.houseY + row.dy + (rng() - 0.5) * 0.12;
+        pins.push(makePin(x, y));
       }
     }
     return pins;
   }
 
-  function buildGates() {
-    return [
-      {
-        y: 11.0,
-        gates: [
-          { type: 'sizeUp', x: -0.75, w: 1.5, used: false },
-          { type: 'split', x: 0.75, w: 1.5, used: false }
-        ]
-      },
-      {
-        y: 17.0,
-        gates: [
-          { type: 'speedUp', x: -1.3, w: 0.95, used: false },
-          { type: 'sticky', x: -0.35, w: 0.55, used: false },
-          { type: 'mult', x: 1.15, w: 0.9, used: false }
-        ]
-      },
-      {
-        y: 23.0,
-        gates: [
-          { type: 'magnet', x: -1.2, w: 0.95, used: false },
-          { type: 'shrink', x: 0.35, w: 0.6, used: false },
-          { type: 'pierce', x: 1.2, w: 0.95, used: false }
-        ]
+  function buildGates(seed, floor) {
+    const level = Math.max(1, floor || 1);
+    const rng = mulberry32(hashSeed(seed || QUICK_SEED, 9001 + level * 17));
+    const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+    const shuffle = (arr) => {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const t = a[i];
+        a[i] = a[j];
+        a[j] = t;
       }
-    ];
+      return a;
+    };
+    const pickUnique = (pool, count) => shuffle(pool).slice(0, count);
+    const scale = Math.max(0.82, 1.05 - (level - 1) * 0.04);
+    const debuffChance = level <= 1 ? 0 : Math.min(0.45, 0.18 + (level - 1) * 0.08);
+
+    // Row 1: two wide growth gates, always easy to hit.
+    const growth = shuffle(['sizeUp', 'split']);
+    const row1 = {
+      y: 11,
+      gates: [
+        { type: growth[0], x: -0.75, w: 1.45 + rng() * 0.12, used: false },
+        { type: growth[1], x: 0.75, w: 1.45 + rng() * 0.12, used: false }
+      ]
+    };
+
+    const makeRow = (y, count, buffs, debuffs, positions) => {
+      const chosen = [];
+      const buffPool = shuffle(buffs);
+      const debuffPool = shuffle(debuffs);
+      for (let i = 0; i < count; i++) {
+        const wantDebuff = i > 0 && rng() < debuffChance && debuffPool.length > 0;
+        const type = wantDebuff ? debuffPool.pop() : buffPool.pop();
+        chosen.push(type || pick(buffs));
+      }
+      if (chosen.every((t) => debuffs.includes(t))) {
+        chosen[0] = pick(buffs);
+      }
+      return {
+        y,
+        gates: chosen.map((type, i) => {
+          const isDebuff = debuffs.includes(type);
+          return {
+            type,
+            x: positions[i],
+            w: (isDebuff ? 0.58 + rng() * 0.08 : 0.88 + rng() * 0.18) * scale,
+            used: false
+          };
+        })
+      };
+    };
+
+    const row2Count = level <= 1 ? 2 : rng() < 0.52 ? 2 : 3;
+    const row3Count = level <= 1 ? 2 : rng() < 0.45 ? 2 : 3;
+    const row2 = makeRow(
+      17,
+      row2Count,
+      ['speedUp', 'mult', 'magnet', 'pierce'],
+      ['sticky'],
+      row2Count === 3 ? [-1.3, 0, 1.3] : [-0.85, 0.85]
+    );
+    const row3 = makeRow(
+      23,
+      row3Count,
+      ['magnet', 'pierce', 'mult'],
+      ['shrink', 'sticky'],
+      row3Count === 3 ? [-1.3, 0, 1.3] : [-0.85, 0.85]
+    );
+
+    return [row1, row2, row3];
   }
 
   // =========================================================================
@@ -634,7 +705,7 @@
   function startQuick() {
     resetRunBase();
     game.targetScore = TARGET_SCORE;
-    game.runTotalPins = 3 * buildPins().length;
+    game.runTotalPins = 3 * buildPins(QUICK_SEED).length;
     startThrow();
   }
 
@@ -646,14 +717,13 @@
     t.hearts = 3;
     t.floorDamage = 0;
     t.bestFloor = loadTowerBest();
-    t.balls = [
-      { id: 'standard', level: 1 },
-      { id: 'giant', level: 1 },
-      { id: 'curl', level: 1 },
-      { id: 'split', level: 1 }
-    ];
+    t.runSeed = (Math.random() * 1e9) | 0;
+    t.floorSeed = hashSeed(t.runSeed, 1);
+    t.options = [];
+    t.balls = [{ id: 'standard', level: 1 }];
     t.selectedBall = 0;
     t.upgraded = false;
+    t.chosenOption = -1;
     game.targetScore = TOWER_BASE_DEF;
     game.runTotalPins = 0;
     startThrow();
@@ -675,8 +745,9 @@
         ballColor: selectedType.color
       } : {})
     ];
-    game.gates = buildGates();
-    game.pins = buildPins();
+    const layoutSeed = game.mode === 'tower' ? game.tower.floorSeed : QUICK_SEED;
+    game.gates = buildGates(layoutSeed, game.mode === 'tower' ? game.tower.floor : 1);
+    game.pins = buildPins(layoutSeed);
     game.totalPins = game.pins.length;
     game.hitPins = 0;
     game.combo = 0;
@@ -749,14 +820,34 @@
       const damage = Math.round(gained * (1 + towerAtkBonus()));
       game.tower.floorDamage += damage;
       game.throwStartScore = game.score;
-      showToast('第 ' + (game.throwIndex + 1) + ' 壶 +' + fmt(damage) + ' 伤害', 900);
+      if (game.tower.floorDamage >= game.tower.def) {
+        game.betweenTimer = 0.45;
+        showToast('达标！伤害 ' + fmt(game.tower.floorDamage) + ' / ' + fmt(game.tower.def), 900);
+      } else {
+        showToast('第 ' + (game.throwIndex + 1) + ' 壶 +' + fmt(damage) + ' 伤害', 900);
+      }
     } else {
       showToast('第 ' + (game.throwIndex + 1) + ' 壶 +' + fmt(gained) + (clearBonus ? ' · 清屏!' : ''), 900);
     }
   }
 
+  function advanceBetween() {
+    if (
+      game.mode === 'tower' &&
+      game.tower.floorDamage >= game.tower.def
+    ) {
+      resolveTowerFloor();
+      return;
+    }
+    nextThrow();
+  }
+
   function nextThrow() {
     if (game.mode === 'tower') {
+      if (game.tower.floorDamage >= game.tower.def) {
+        resolveTowerFloor();
+        return;
+      }
       game.throwIndex += 1;
       if (game.throwIndex >= game.throwsTotal) {
         resolveTowerFloor();
@@ -803,7 +894,7 @@
     game.phase = 'towerClear';
     towerOverlay.classList.remove('hidden');
     towerBadge.textContent = '第 ' + t.floor + ' 层突破';
-    towerTitle.textContent = '选择一颗冰球强化';
+    towerTitle.textContent = '选择 1 个冰球';
     towerSub.textContent = '伤害 ' + fmt(t.floorDamage) + ' / 防御 ' + fmt(t.def);
     towerBalls.classList.remove('hidden');
     towerTip.classList.remove('hidden');
@@ -814,6 +905,8 @@
     towerRetryBtn.classList.add('hidden');
     towerEndBtn.classList.add('hidden');
     t.upgraded = false;
+    t.chosenOption = -1;
+    t.options = rollTowerOptions();
     renderTowerBalls();
     updateTowerAtkLabel();
   }
@@ -836,39 +929,78 @@
     towerEndBtn.textContent = '放弃回主页';
   }
 
+  function rollTowerOptions() {
+    const t = game.tower;
+    const owned = new Set(t.balls.map((b) => b.id));
+    const pool = [];
+    for (const id of Object.keys(BALL_TYPES)) {
+      if (!owned.has(id)) pool.push({ kind: 'new', id });
+    }
+    t.balls.forEach((b, i) => {
+      if (b.level < 5) pool.push({ kind: 'upgrade', index: i });
+    });
+    while (pool.length < 3) pool.push({ kind: 'heart' });
+    const shuffled = pool.slice();
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = tmp;
+    }
+    return shuffled.slice(0, 3);
+  }
+
   function renderTowerBalls() {
     const t = game.tower;
     towerBalls.innerHTML = '';
-    t.balls.forEach((ball, i) => {
-      const type = ballType(ball);
+    t.options.forEach((opt, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'ball-card';
-      if (i === t.selectedBall) btn.classList.add('selected');
+      if (t.chosenOption === i) btn.classList.add('selected');
       if (t.upgraded) btn.disabled = true;
-      btn.innerHTML =
-        '<b>' +
-        type.name +
-        ' Lv.' +
-        ball.level +
-        '</b>' +
-        '<span class="ball-meta">攻击 +' +
-        Math.round((ballPower(ball) - 1) * 100) +
-        '%</span>' +
-        '<span class="ball-desc">' +
-        type.desc +
-        '</span>';
-      btn.addEventListener('click', () => upgradeBall(i));
+
+      if (opt.kind === 'new') {
+        const type = BALL_TYPES[opt.id];
+        btn.innerHTML =
+          '<b>' + type.name + ' · 新冰球</b>' +
+          '<span class="ball-meta">获得 Lv.1</span>' +
+          '<span class="ball-desc">' + type.desc + '</span>';
+      } else if (opt.kind === 'upgrade') {
+        const ball = t.balls[opt.index];
+        const type = ballType(ball);
+        btn.innerHTML =
+          '<b>' + type.name + ' Lv.' + ball.level + ' → Lv.' + (ball.level + 1) + '</b>' +
+          '<span class="ball-meta">攻击 +18%</span>' +
+          '<span class="ball-desc">' + type.desc + '</span>';
+      } else {
+        btn.innerHTML =
+          '<b>恢复 1 心</b>' +
+          '<span class="ball-meta">当前 ❤' + t.hearts + '</span>' +
+          '<span class="ball-desc">球少的时候可以保命</span>';
+      }
+
+      btn.addEventListener('click', () => chooseTowerOption(i));
       towerBalls.appendChild(btn);
     });
   }
 
-  function upgradeBall(i) {
+  function chooseTowerOption(i) {
     const t = game.tower;
     if (t.upgraded) return;
+    const opt = t.options[i];
+    if (!opt) return;
+    if (opt.kind === 'new') {
+      t.balls.push({ id: opt.id, level: 1 });
+      t.selectedBall = t.balls.length - 1;
+    } else if (opt.kind === 'upgrade') {
+      t.balls[opt.index].level = Math.min(5, t.balls[opt.index].level + 1);
+      t.selectedBall = opt.index;
+    } else {
+      t.hearts = Math.min(5, t.hearts + 1);
+    }
     t.upgraded = true;
-    t.selectedBall = i;
-    t.balls[i].level += 1;
+    t.chosenOption = i;
     AudioFX.gate();
     haptic(12);
     renderTowerBalls();
@@ -944,7 +1076,10 @@
     t.floor += 1;
     t.def = Math.round(t.def * TOWER_DEF_GROWTH);
     t.floorDamage = 0;
+    t.floorSeed = hashSeed(t.runSeed, t.floor);
+    t.options = [];
     t.upgraded = false;
+    t.chosenOption = -1;
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -956,6 +1091,8 @@
     towerOverlay.classList.add('hidden');
     t.floorDamage = 0;
     t.upgraded = false;
+    t.options = [];
+    t.chosenOption = -1;
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -971,6 +1108,7 @@
     homeBtn.classList.remove('hidden');
     towerBtn.classList.add('hidden');
     ballBar.classList.add('hidden');
+    shareBtn.classList.remove('hidden');
 
     if (game.mode === 'tower') {
       const t = game.tower;
@@ -1030,8 +1168,8 @@
     game.displayScore = 0;
     game.throwIndex = 0;
     game.throwsTotal = 3;
-    game.gates = buildGates();
-    game.pins = buildPins();
+    game.gates = buildGates(QUICK_SEED, 1);
+    game.pins = buildPins(QUICK_SEED);
     game.totalPins = game.pins.length;
     game.stones = [makeStone(0, WORLD.releaseY)];
     game.tower.bestFloor = loadTowerBest();
@@ -1042,6 +1180,7 @@
     towerBtn.textContent = '爬塔模式';
     towerBtn.classList.remove('hidden');
     homeBtn.classList.add('hidden');
+    shareBtn.classList.add('hidden');
     footnoteEl.textContent = '3 壶 · 目标 6,000 · 3 星 10,000';
     towerOverlay.classList.add('hidden');
     ballBar.classList.add('hidden');
@@ -1081,7 +1220,7 @@
   canvas.addEventListener('pointerdown', (e) => {
     AudioFX.init();
     if (game.phase === 'between') {
-      nextThrow();
+      advanceBetween();
       return;
     }
     if (game.phase === 'aim') {
@@ -1151,6 +1290,43 @@
   homeBtn.addEventListener('click', () => {
     AudioFX.init();
     showMenu();
+  });
+
+  function shareResult() {
+    const text =
+      game.mode === 'tower'
+        ? '我在冰壶大作战爬到第 ' +
+          game.tower.floor +
+          ' 层，最高第 ' +
+          game.tower.bestFloor +
+          ' 层，来挑战！'
+        : '我在冰壶大作战拿到 ' +
+          fmt(game.score) +
+          ' 分（' +
+          '★'.repeat(starsFor(Math.round(game.score))) +
+          '），来挑战！';
+    const url = location.href;
+    if (navigator.share) {
+      try {
+        navigator.share({ title: '冰壶大作战', text, url }).catch(() => {});
+      } catch (e) {
+        showToast('分享不可用，截图吧', 900);
+      }
+      return;
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard
+        .writeText(text + ' ' + url)
+        .then(() => showToast('已复制成绩', 900))
+        .catch(() => showToast('分享不可用，截图吧', 900));
+      return;
+    }
+    showToast('分享不可用，截图吧', 900);
+  }
+
+  shareBtn.addEventListener('click', () => {
+    AudioFX.init();
+    shareResult();
   });
 
   towerNextBtn.addEventListener('click', () => {
@@ -1711,7 +1887,7 @@
       }
     } else if (game.phase === 'between') {
       game.betweenTimer -= dt;
-      if (game.betweenTimer <= 0) nextThrow();
+      if (game.betweenTimer <= 0) advanceBetween();
     }
 
     game.shake *= Math.pow(0.9, dt * 60);
@@ -2218,62 +2394,80 @@
   }
 
   function drawPowerBar(p, r) {
-    const SEGMENTS = 12;
-    const segH = 5;
-    const gap = 1.5;
-    const barH = SEGMENTS * segH + (SEGMENTS - 1) * gap;
+    const barW = 14;
+    const barH = 74;
     const side = p.sx > W * 0.5 ? -1 : 1;
-    const x = p.sx + side * (r + 16);
-    const bottom = p.sy + 34;
+    const x = p.sx + side * (r + 20);
+    const bottom = p.sy + 30;
     const top = bottom - barH;
+    const power = game.aim.power;
 
     ctx.save();
-    ctx.fillStyle = 'rgba(4,14,28,0.55)';
-    roundRect(ctx, x - 10, top - 8, 20, barH + 16, 10);
+
+    // outer capsule
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = 'rgba(4,14,28,0.62)';
+    roundRect(ctx, x - barW / 2 - 3, top - 5, barW + 6, barH + 10, (barW + 6) / 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(140,210,255,0.25)';
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(140,210,255,0.28)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    const lit = Math.round(game.aim.power * SEGMENTS);
-    for (let i = 0; i < SEGMENTS; i++) {
-      const t = i / (SEGMENTS - 1);
-      const hue = 210 - 210 * t;
-      const y = bottom - (i + 1) * segH - i * gap;
-      if (i < lit) {
-        ctx.fillStyle = 'hsl(' + hue + ', 92%, 58%)';
-      } else {
-        ctx.fillStyle = 'hsla(' + hue + ', 70%, 55%, 0.14)';
-      }
-      roundRect(ctx, x - 6, y, 12, segH, 2);
-      ctx.fill();
+    // inner track
+    ctx.save();
+    roundRect(ctx, x - barW / 2, top, barW, barH, barW / 2);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(8,24,45,0.8)';
+    ctx.fillRect(x - barW / 2, top, barW, barH);
+
+    const fillH = barH * power;
+    if (fillH > 0.5) {
+      const g = ctx.createLinearGradient(0, bottom, 0, top);
+      g.addColorStop(0, '#3b82f6');
+      g.addColorStop(0.35, '#22d3ee');
+      g.addColorStop(0.55, '#22c55e');
+      g.addColorStop(0.75, '#facc15');
+      g.addColorStop(1, '#ef4444');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - barW / 2, bottom - fillH, barW, fillH);
     }
 
-    // current power marker
-    const markerY = bottom - game.aim.power * barH;
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.beginPath();
-    if (side > 0) {
-      ctx.moveTo(x - 9, markerY);
-      ctx.lineTo(x - 15, markerY - 4);
-      ctx.lineTo(x - 15, markerY + 4);
-    } else {
-      ctx.moveTo(x + 9, markerY);
-      ctx.lineTo(x + 15, markerY - 4);
-      ctx.lineTo(x + 15, markerY + 4);
+    // subtle tick marks
+    ctx.strokeStyle = 'rgba(4,14,28,0.30)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 10; i++) {
+      const y = bottom - (barH * i) / 10;
+      ctx.beginPath();
+      ctx.moveTo(x - barW / 2, y);
+      ctx.lineTo(x + barW / 2, y);
+      ctx.stroke();
     }
-    ctx.closePath();
+    ctx.restore();
+
+    // knob
+    const knobY = bottom - fillH;
+    if (power >= 0.99) {
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 14;
+    }
+    ctx.beginPath();
+    ctx.arc(x, knobY, 7, 0, TAU);
+    ctx.fillStyle = '#ffffff';
     ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = power >= 0.99 ? '#ef4444' : 'rgba(95,227,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
     ctx.textAlign = side > 0 ? 'left' : 'right';
     ctx.textBaseline = 'middle';
     ctx.font = '800 10px "PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.fillStyle = game.aim.power >= 0.99 ? '#ff4d5e' : 'rgba(234,247,255,0.85)';
-    ctx.fillText(
-      game.aim.power >= 0.99 ? 'MAX' : Math.round(game.aim.power * 100) + '%',
-      x + side * 14,
-      markerY
-    );
+    ctx.fillStyle = power >= 0.99 ? '#ff4d5e' : 'rgba(234,247,255,0.9)';
+    if (power > 0.01) {
+      ctx.fillText(power >= 0.99 ? 'MAX' : Math.round(power * 100) + '%', x + side * 16, knobY);
+    }
     ctx.restore();
   }
 

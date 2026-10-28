@@ -531,11 +531,12 @@ body {
 .ball-bar {
   display: flex;
   gap: 6px;
+  justify-content: center;
   pointer-events: auto;
 }
 
 .ball-chip {
-  flex: 1;
+  flex: 0 0 66px;
   min-width: 0;
   height: 38px;
   padding: 4px 4px;
