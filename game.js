@@ -90,9 +90,9 @@
   const CAMPAIGN_LEVELS = [
     {
       name: '初试冰面',
-      desc: '吃满成长门，感受满力投掷',
-      def: 300,
-      goal: { type: 'damage', value: 300 },
+      desc: '直线瞄准，吃满成长门',
+      def: 250,
+      goal: { type: 'damage', value: 250 },
       pins: 'diamond',
       balls: [cBall('standard', 1)],
       rows: [
@@ -102,133 +102,146 @@
       ]
     },
     {
-      name: '分裂之门',
-      desc: '让一颗球变成两颗，扩大清屏',
-      def: 500,
-      goal: { type: 'damage', value: 500 },
-      pins: 'diamond',
+      name: '分裂双列',
+      desc: '分裂球覆盖左右两列钉子',
+      def: 900,
+      goal: { type: 'pins', value: 20 },
+      pins: 'twin',
       balls: [cBall('standard', 1), cBall('split', 1)],
       rows: [
         cRow(12, [cGate('split', 0, 1.5), cGate('sizeUp', -1.15, 1.0), cGate('speedUp', 1.15, 1.0)]),
-        cRow(18, [cGate('mult', 0, 1.5), cGate('mult', -1.25, 0.85, 0.22), cGate('mult', 1.25, 0.85, 0.22)]),
-        cRow(24, [cGate('speedUp', 0, 1.3)])
+        cRow(18, [cGate('mult', 0, 1.3)]),
+        cRow(24, [cGate('speedUp', 0, 1.2)])
       ]
     },
     {
-      name: '精准穿门',
-      desc: '门变窄了，先撞中 10 个钉子',
-      def: 1000,
-      goal: { type: 'pins', value: 10 },
-      pins: 'sparse',
-      balls: [cBall('standard', 2), cBall('curl', 1)],
+      name: '弧线绕墙',
+      desc: '中线被钉墙挡住，只能从侧门绕过',
+      def: 650,
+      goal: { type: 'gates', value: 3 },
+      pins: 'none',
+      extraPins: [
+        { y: 16, xs: [-1.8, -1.2, -0.6, 0, 0.6, 1.2, 1.8] },
+        { y: 29, xs: [-1.8, -1.2, 1.2, 1.8] },
+        { y: 30.5, xs: [-1.65, -1.05, 1.05, 1.65] }
+      ],
+      balls: [cBall('standard', 1), cBall('curl', 1)],
       rows: [
-        cRow(12, [cGate('sizeUp', -0.7, 1.15), cGate('sizeUp', 0.7, 1.15)]),
-        cRow(18, [cGate('mult', 0, 1.1)]),
-        cRow(23, [cGate('mult', -0.85, 0.9, 0.25), cGate('magnet', 0.85, 0.9)])
+        cRow(11.5, [cGate('sizeUp', -1.55, 1.0), cGate('mult', 1.55, 1.0)]),
+        cRow(19, [cGate('mult', -1.1, 0.9), cGate('mult', 1.1, 0.9)]),
+        cRow(24, [cGate('mult', -1.0, 0.9), cGate('sticky', 0, 0.9), cGate('mult', 1.0, 0.9)])
       ]
     },
     {
-      name: '双线抉择',
-      desc: '左右两条成长路线，中间有粘滞风险',
-      def: 700,
-      goal: { type: 'damage', value: 700 },
-      pins: 'wall',
-      balls: [cBall('standard', 2), cBall('giant', 1), cBall('curl', 1)],
+      name: '巨力破墙',
+      desc: '钉墙留出窄口，巨力球硬破',
+      def: 1200,
+      goal: { type: 'pins', value: 24 },
+      pins: 'diamond',
+      extraPins: [{ y: 15, xs: [-1.8, -1.2, -0.6, 0.6, 1.2, 1.8] }],
+      balls: [cBall('giant', 1), cBall('standard', 1)],
       rows: [
-        cRow(12, [cGate('sizeUp', -1.25, 1.0), cGate('split', 0, 1.1), cGate('speedUp', 1.25, 1.0)]),
-        cRow(17, [cGate('mult', -0.7, 1.0), cGate('mult', 0, 0.9), cGate('sticky', 0.7, 0.85)]),
-        cRow(22, [cGate('mult', -0.9, 1.0, 0.28), cGate('magnet', 0.9, 0.95, 0.32)]),
-        cRow(26, [cGate('pierce', 0, 1.0)])
+        cRow(11.5, [cGate('sizeUp', 0, 1.2)]),
+        cRow(19, [cGate('mult', 0, 1.2), cGate('speedUp', 0, 1.2)]),
+        cRow(24, [cGate('mult', -1.0, 0.9), cGate('mult', 1.0, 0.9)])
       ]
     },
     {
-      name: '重叠增益',
-      desc: '重叠圆一次吃两个 buff，触发 6 个门',
-      def: 2000,
+      name: '重叠赌注',
+      desc: '左右两套重叠门，选一边吃满 6 个',
+      def: 1800,
       goal: { type: 'gates', value: 6 },
       pins: 'diamond',
       balls: [cBall('standard', 1), cBall('split', 1)],
       rows: [
-        cRow(12, [cGate('sizeUp', 0, 1.5), cGate('split', 0, 1.5)]),
-        cRow(18, [cGate('mult', 0, 1.4), cGate('speedUp', 0, 1.4)]),
-        cRow(24, [cGate('magnet', 0, 1.3), cGate('pierce', 0, 1.3)])
+        cRow(12, [
+          cGate('sizeUp', -1.25, 1.1), cGate('split', -1.25, 1.1),
+          cGate('mult', 1.25, 1.1), cGate('speedUp', 1.25, 1.1)
+        ]),
+        cRow(18, [
+          cGate('mult', -1.25, 1.1), cGate('magnet', -1.25, 1.1),
+          cGate('speedUp', 1.25, 1.1), cGate('pierce', 1.25, 1.1)
+        ]),
+        cRow(24, [
+          cGate('mult', -1.25, 1.1), cGate('mult', -1.25, 1.1),
+          cGate('mult', 1.25, 1.1), cGate('speedUp', 1.25, 1.1)
+        ])
       ]
     },
     {
-      name: '钉子风暴',
-      desc: '清掉 26 个钉子，分裂球开始发力',
-      def: 2600,
-      goal: { type: 'pins', value: 26 },
+      name: '移动时机',
+      desc: '移动门会改变位置，提前量比准星更重要',
+      def: 2200,
+      goal: { type: 'gates', value: 4 },
       pins: 'clusters',
-      balls: [cBall('standard', 2), cBall('split', 2)],
+      balls: [cBall('standard', 2), cBall('split', 1)],
       rows: [
-        cRow(12, [cGate('split', -0.55, 1.35), cGate('sizeUp', 0.55, 1.35)]),
-        cRow(18, [cGate('mult', -0.85, 1.0), cGate('mult', 0.85, 1.0)]),
-        cRow(23, [cGate('speedUp', -0.65, 0.9, 0.3), cGate('magnet', 0.65, 0.9, 0.3)]),
-        cRow(26, [cGate('pierce', 0, 1.0)])
+        cRow(12, [cGate('mult', -1.0, 0.95, 0.35), cGate('mult', 1.0, 0.95, 0.35)]),
+        cRow(17, [cGate('speedUp', -1.1, 0.85, 0.3), cGate('magnet', 1.1, 0.85, 0.3)]),
+        cRow(22, [cGate('split', 0, 1.0)]),
+        cRow(26, [cGate('mult', 0, 1.0)])
       ]
     },
     {
-      name: '风险之门',
-      desc: '高收益与粘滞/缩小同排，别只看颜色',
-      def: 2300,
-      goal: { type: 'damage', value: 2300 },
+      name: '风险走廊',
+      desc: '中路粘滞/缩小，侧路安全但收益低',
+      def: 1800,
+      goal: { type: 'damage', value: 2000 },
       pins: 'wall',
-      balls: [cBall('standard', 2), cBall('giant', 1), cBall('split', 1), cBall('bomb', 1)],
+      balls: [cBall('standard', 1), cBall('giant', 1), cBall('split', 1)],
       rows: [
         cRow(12, [cGate('sizeUp', -1.25, 1.0), cGate('split', 0, 1.0), cGate('shrink', 1.25, 0.8)]),
-        cRow(17, [cGate('mult', -1.0, 1.0), cGate('mult', 0, 0.9), cGate('sticky', 1.0, 0.85)]),
-        cRow(22, [cGate('speedUp', -0.9, 0.9, 0.3), cGate('mult', 0.9, 0.9, 0.3)]),
-        cRow(26, [cGate('pierce', 0, 0.9)])
+        cRow(17, [cGate('mult', -1.0, 1.0), cGate('sticky', 0, 0.9), cGate('mult', 1.0, 1.0)]),
+        cRow(22, [cGate('mult', -0.9, 0.9, 0.3), cGate('shrink', 0, 0.8), cGate('mult', 0.9, 0.9, 0.3)]),
+        cRow(26, [cGate('mult', 0, 1.1)])
       ]
     },
     {
-      name: '磁力迷宫',
-      desc: '9 个门散落成三条线，拿到 8 个',
-      def: 4000,
-      goal: { type: 'gates', value: 8 },
+      name: '反弹银行',
+      desc: '中心钉墙封路，侧门靠弹跳球绕进去',
+      def: 2600,
+      goal: { type: 'gates', value: 6 },
       pins: 'ring',
-      balls: [cBall('standard', 2), cBall('curl', 1), cBall('pierce', 1), cBall('magnet', 1)],
+      extraPins: [{ y: 18, xs: [-1.8, -1.2, -0.6, 0, 0.6, 1.2, 1.8] }],
+      balls: [cBall('standard', 1), cBall('bounce', 2)],
       rows: [
-        cRow(12, [cGate('sizeUp', -1.3, 1.0), cGate('mult', 0, 1.0), cGate('split', 1.3, 1.0)]),
-        cRow(18, [cGate('mult', -1.2, 0.9, 0.3), cGate('speedUp', 0, 1.0), cGate('magnet', 1.2, 0.9, 0.3)]),
-        cRow(24, [cGate('pierce', -1.0, 0.9), cGate('mult', 0, 1.0), cGate('speedUp', 1.0, 0.9)])
+        cRow(12, [cGate('mult', -1.55, 0.95), cGate('mult', 1.55, 0.95)]),
+        cRow(16, [cGate('speedUp', -1.45, 0.85, 0.3), cGate('magnet', 1.45, 0.85, 0.3)]),
+        cRow(22, [cGate('mult', -1.35, 0.9), cGate('mult', 1.35, 0.9)]),
+        cRow(26, [cGate('mult', 0, 0.9)])
       ]
     },
     {
-      name: '极限冰面',
-      desc: '四排窄门 + 移动门，伤害目标 3500',
-      def: 3500,
-      goal: { type: 'damage', value: 3500 },
-      pins: 'dense',
-      balls: [cBall('standard', 2), cBall('giant', 2), cBall('split', 1), cBall('bomb', 1)],
+      name: 'PERFECT 精准',
+      desc: '窄门 + 移动门，拿 3 次完美判定',
+      def: 3000,
+      goal: { type: 'perfect', value: 3 },
+      pins: 'diamond',
+      balls: [cBall('standard', 1), cBall('curl', 2)],
       rows: [
-        cRow(11.5, [cGate('sizeUp', -1.2, 1.0), cGate('sizeUp', 0, 1.0), cGate('speedUp', 1.2, 1.0)]),
-        cRow(16, [cGate('mult', -1.1, 0.9, 0.28), cGate('mult', 0, 0.9), cGate('shrink', 1.1, 0.8)]),
-        cRow(20.5, [cGate('split', -0.8, 0.8), cGate('pierce', 0, 0.9), cGate('split', 0.8, 0.8)]),
-        cRow(25, [cGate('mult', -0.9, 0.9), cGate('mult', 0, 0.9), cGate('sticky', 0.9, 0.8)])
+        cRow(12, [cGate('mult', -1.4, 0.7, 0.25), cGate('mult', 0, 0.7, 0.2), cGate('mult', 1.4, 0.7, 0.25)]),
+        cRow(18, [cGate('speedUp', -1.2, 0.7), cGate('sizeUp', 0, 0.7), cGate('mult', 1.2, 0.7)]),
+        cRow(24, [cGate('mult', -1.0, 0.7), cGate('mult', 0, 0.7, 0.2), cGate('mult', 1.0, 0.7)])
       ]
     },
     {
       name: '冰面首领',
-      desc: '最终首领：12500 防御，五排门全部压上',
-      def: 12500,
-      goal: { type: 'damage', value: 12500 },
-      pins: 'boss',
-      balls: [
-        cBall('standard', 3),
-        cBall('giant', 2),
-        cBall('split', 2),
-        cBall('pierce', 1),
-        cBall('bomb', 1),
-        cBall('curl', 1)
+      desc: '两阶段：先破甲，再打核心',
+      def: 5000,
+      goal: { type: 'pins', value: 10 },
+      phases: [
+        { type: 'pins', value: 10 },
+        { type: 'damage', value: 5000 }
       ],
+      pins: 'boss',
+      extraPins: [{ y: 15, xs: [-1.8, -1.2, -0.6, 0, 0.6, 1.2, 1.8] }],
+      balls: [cBall('standard', 2), cBall('giant', 1), cBall('split', 1), cBall('bomb', 1)],
       rows: [
         cRow(11.5, [cGate('sizeUp', -1.1, 1.0), cGate('split', 0, 1.0), cGate('speedUp', 1.1, 1.0)]),
         cRow(16, [cGate('mult', -1.2, 0.9, 0.3), cGate('mult', 0, 0.9), cGate('mult', 1.2, 0.9, 0.3)]),
         cRow(20.5, [cGate('pierce', -0.9, 0.9), cGate('magnet', 0, 0.9), cGate('split', 0.9, 0.9)]),
         cRow(24.5, [cGate('shrink', -1.0, 0.8), cGate('mult', 0, 1.0), cGate('sticky', 1.0, 0.8)]),
-        cRow(27.5, [cGate('mult', 0, 0.9)])
+        cRow(27, [cGate('mult', 0, 0.9)])
       ]
     }
   ];
@@ -586,6 +599,8 @@
       damage: 0,
       pinsHit: 0,
       gatesHit: 0,
+      perfectHits: 0,
+      bossPhase: 1,
       goal: CAMPAIGN_LEVELS[0].goal,
       config: CAMPAIGN_LEVELS[0],
       maxLevel: loadCampaignBest(),
@@ -702,41 +717,51 @@
   function buildCampaignPins(level) {
     const cfg = CAMPAIGN_LEVELS[Math.max(0, Math.min(CAMPAIGN_LEVELS.length - 1, (level || 1) - 1))];
     const pattern = cfg.pins || 'diamond';
-    if (pattern === 'sparse') {
-      return campaignGridPins([2, 3, 4, 5, 4, 3, 2], 0.6, 0.66, 0);
-    }
-    if (pattern === 'wall') {
-      return campaignGridPins([6, 6, 6, 6, 6], 0.47, 0.62, 0);
-    }
-    if (pattern === 'clusters') {
-      return [
+    let pins;
+    if (pattern === 'none') {
+      pins = [];
+    } else if (pattern === 'sparse') {
+      pins = campaignGridPins([2, 3, 4, 5, 4, 3, 2], 0.6, 0.66, 0);
+    } else if (pattern === 'wall') {
+      pins = campaignGridPins([6, 6, 6, 6, 6], 0.47, 0.62, 0);
+    } else if (pattern === 'clusters') {
+      pins = [
         ...campaignGridPins([4, 4, 4, 4], 0.37, 0.44, -1.35),
         ...campaignGridPins([4, 4, 4, 4], 0.37, 0.44, 1.35)
       ];
-    }
-    if (pattern === 'ring' || pattern === 'boss' || pattern === 'dense') {
-      const pins = [];
-      if (pattern === 'ring') {
-        for (let i = 0; i < 24; i++) {
-          const a = (i / 24) * TAU;
-          pins.push(makePin(Math.cos(a) * 1.55, WORLD.houseY + Math.sin(a) * 1.35));
-        }
-        pins.push(...campaignGridPins([2, 2, 2], 0.55, 0.55, 0));
-        return pins;
+    } else if (pattern === 'twin') {
+      pins = [
+        ...campaignGridPins([1, 1, 1, 1, 1, 1, 1, 1], 0.5, 0.55, -1.62),
+        ...campaignGridPins([1, 1, 1, 1, 1, 1, 1, 1], 0.5, 0.55, 1.62)
+      ];
+    } else if (pattern === 'ring') {
+      pins = [];
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * TAU;
+        pins.push(makePin(Math.cos(a) * 1.55, WORLD.houseY + Math.sin(a) * 1.35));
       }
-      if (pattern === 'dense') {
-        return campaignGridPins([5, 6, 7, 7, 6, 5], 0.4, 0.46, 0);
-      }
-      // boss: dense ring + core block
+      pins.push(...campaignGridPins([2, 2, 2], 0.55, 0.55, 0));
+    } else if (pattern === 'dense') {
+      pins = campaignGridPins([5, 6, 7, 7, 6, 5], 0.4, 0.46, 0);
+    } else if (pattern === 'boss') {
+      pins = [];
       for (let i = 0; i < 30; i++) {
         const a = (i / 30) * TAU;
         pins.push(makePin(Math.cos(a) * 1.62, WORLD.houseY + Math.sin(a) * 1.42));
       }
       pins.push(...campaignGridPins([3, 4, 3], 0.45, 0.5, 0));
-      return pins;
+    } else {
+      pins = campaignGridPins([3, 4, 5, 6, 5, 4, 3], 0.52, 0.62, 0);
     }
-    // default diamond:
-    return campaignGridPins([3, 4, 5, 6, 5, 4, 3], 0.52, 0.62, 0);
+
+    if (Array.isArray(cfg.extraPins)) {
+      for (const wall of cfg.extraPins) {
+        for (const x of wall.xs || []) {
+          pins.push(makePin(x, wall.y));
+        }
+      }
+    }
+    return pins;
   }
 
   function buildGates(seed, floor) {
@@ -1076,9 +1101,13 @@
   }
 
   function levelGoalShort(cfg) {
-    const g = cfg.goal;
+    if (cfg.phases && cfg.phases.length > 1) {
+      return '破甲 ' + cfg.phases[0].value;
+    }
+    const g = cfg.goal || (cfg.phases && cfg.phases[0]);
     if (g.type === 'pins') return '钉子 ' + g.value;
     if (g.type === 'gates') return '门 ' + g.value;
+    if (g.type === 'perfect') return 'PERFECT ' + g.value;
     return '伤害 ' + fmt(g.value);
   }
 
@@ -1107,10 +1136,11 @@
       btn.type = 'button';
       btn.className = 'level-btn' + (unlocked ? '' : ' locked') + (done ? ' cleared' : '');
       btn.disabled = !unlocked;
+      const ballCount = (cfg.balls || []).reduce((sum, b) => sum + (b.count || 1), 0);
       btn.innerHTML =
         '<span class="level-num">' + String(level).padStart(2, '0') + '</span>' +
         '<b>' + cfg.name + '</b>' +
-        '<span class="level-goal">' + levelGoalShort(cfg) + '</span>' +
+        '<span class="level-goal">' + levelGoalShort(cfg) + ' · ' + ballCount + '球</span>' +
         '<span class="level-state">' + (done ? '✓ 已通关' : unlocked ? '可挑战' : '🔒 未解锁') + '</span>';
       if (unlocked) {
         btn.addEventListener('click', () => startCampaignLevel(level));
@@ -1142,10 +1172,12 @@
     const index = Math.max(0, Math.min(CAMPAIGN_LEVELS.length - 1, (level || 1) - 1));
     c.level = index + 1;
     c.config = CAMPAIGN_LEVELS[index];
-    c.goal = c.config.goal;
+    c.goal = c.config.phases ? c.config.phases[0] : c.config.goal;
     c.damage = 0;
     c.pinsHit = 0;
     c.gatesHit = 0;
+    c.perfectHits = 0;
+    c.bossPhase = 1;
     c.victory = false;
     t.floor = c.level;
     t.def = c.config.def;
@@ -1179,6 +1211,7 @@
     if (!g) return '伤害达标';
     if (g.type === 'pins') return '撞中 ' + g.value + ' 个钉子';
     if (g.type === 'gates') return '触发 ' + g.value + ' 个门';
+    if (g.type === 'perfect') return 'PERFECT ' + g.value + ' 次';
     return '伤害达到 ' + fmt(g.value);
   }
 
@@ -1189,6 +1222,7 @@
     if (g.type === 'damage') return c.damage >= g.value;
     if (g.type === 'pins') return c.pinsHit >= g.value;
     if (g.type === 'gates') return c.gatesHit >= g.value;
+    if (g.type === 'perfect') return c.perfectHits >= g.value;
     return false;
   }
 
@@ -1198,6 +1232,7 @@
     if (!g) return { value: 0, need: 1 };
     if (g.type === 'pins') return { value: c.pinsHit, need: g.value };
     if (g.type === 'gates') return { value: c.gatesHit, need: g.value };
+    if (g.type === 'perfect') return { value: c.perfectHits, need: g.value };
     if (g.type === 'damage') return { value: c.damage, need: g.value };
     return { value: 0, need: 1 };
   }
@@ -1205,9 +1240,24 @@
   function campaignGoalProgressText() {
     const c = game.campaign;
     const p = campaignGoalProgress();
-    if (c.goal && c.goal.type === 'pins') return '钉子 ' + p.value + '/' + p.need;
-    if (c.goal && c.goal.type === 'gates') return '门 ' + p.value + '/' + p.need;
-    return '伤害 ' + fmt(p.value) + '/' + fmt(p.need);
+    const phase = c.config && c.config.phases ? '阶段' + c.bossPhase + ' · ' : '';
+    if (c.goal && c.goal.type === 'pins') return phase + '钉子 ' + p.value + '/' + p.need;
+    if (c.goal && c.goal.type === 'gates') return phase + '门 ' + p.value + '/' + p.need;
+    if (c.goal && c.goal.type === 'perfect') return phase + 'PERFECT ' + p.value + '/' + p.need;
+    return phase + '伤害 ' + fmt(p.value) + '/' + fmt(p.need);
+  }
+
+  function advanceCampaignPhase() {
+    const c = game.campaign;
+    const phases = c.config && c.config.phases;
+    if (!phases || c.bossPhase >= phases.length) return false;
+    c.bossPhase += 1;
+    c.goal = phases[c.bossPhase - 1];
+    c.damage = 0;
+    game.tower.floorDamage = 0;
+    game.throwStartScore = game.score;
+    showToast('护甲破碎！第二阶段：' + campaignGoalShort(), 1400);
+    return true;
   }
 
   function startThrow() {
@@ -1413,6 +1463,19 @@
   function resolveCampaignLevel() {
     const c = game.campaign;
     if (campaignGoalMet()) {
+      if (advanceCampaignPhase()) {
+        if (game.tower.balls.some((b) => b.used < b.count)) {
+          game.throwIndex += 1;
+          if (game.throwIndex >= game.throwsTotal) {
+            showCampaignFail();
+          } else {
+            startThrow();
+          }
+        } else {
+          showCampaignFail();
+        }
+        return;
+      }
       c.maxLevel = Math.max(c.maxLevel, c.level);
       saveCampaignBest(c.maxLevel);
       AudioFX.win();
@@ -2271,7 +2334,12 @@
     const gp = project(x, row.y);
     const sp = project(s.x, s.y);
     const R = Math.max(6, (g.w / 2) * gp.ppm);
-    const perfect = Math.hypot(sp.sx - gp.sx, sp.sy - gp.sy) <= R * 0.3;
+    const ahead = project(s.x + s.vx * 0.12, s.y + s.vy * 0.12);
+    const vx = ahead.sx - sp.sx;
+    const vy = ahead.sy - sp.sy;
+    const vlen = Math.max(0.001, Math.hypot(vx, vy));
+    const cross = Math.abs((gp.sx - sp.sx) * vy - (gp.sy - sp.sy) * vx) / vlen;
+    const perfect = cross <= R * 0.3;
 
     game.gateChain += 1;
     game.maxChain = Math.max(game.maxChain, game.gateChain);
@@ -2290,6 +2358,7 @@
 
     if (perfect) {
       game.gateMult = Math.min(GATE_MULT_MAX, game.gateMult + 0.5);
+      if (game.mode === 'campaign') game.campaign.perfectHits += 1;
       addPopup(x, row.y + 2.7, 'PERFECT +0.5x', '#ffd34d', 0.7);
       AudioFX.perfect();
     }
@@ -2875,7 +2944,9 @@
           ? '钉子 ' + game.campaign.goal.value
           : game.campaign.goal.type === 'gates'
             ? '门 ' + game.campaign.goal.value
-            : 'DEF ' + fmt(game.campaign.goal.value))
+            : game.campaign.goal.type === 'perfect'
+              ? 'PERFECT ' + game.campaign.goal.value
+              : 'DEF ' + fmt(game.campaign.goal.value))
       : 'DEF ' + fmt(t.def);
     const badgeW = game.mode === 'campaign' ? 96 : 72;
     roundRect(ctx, p.sx - badgeW / 2, p.sy - r - 28, badgeW, 18, 9);
@@ -3328,15 +3399,20 @@
       scoreEl.textContent = fmt(liveDamage);
       let progress = liveDamage;
       let need = g && g.value ? g.value : 1;
-      let label = '第 ' + c.level + ' 关 · 伤害 ' + fmt(liveDamage) + '/' + fmt(need);
+      const phasePrefix = c.config.phases ? '阶段' + c.bossPhase + ' · ' : '';
+      let label = '第 ' + c.level + ' 关 · ' + phasePrefix + '伤害 ' + fmt(liveDamage) + '/' + fmt(need);
       if (g && g.type === 'pins') {
         progress = c.pinsHit;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · 钉子 ' + progress + '/' + need;
+        label = '第 ' + c.level + ' 关 · ' + phasePrefix + '钉子 ' + progress + '/' + need;
       } else if (g && g.type === 'gates') {
         progress = c.gatesHit;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · 门 ' + progress + '/' + need;
+        label = '第 ' + c.level + ' 关 · ' + phasePrefix + '门 ' + progress + '/' + need;
+      } else if (g && g.type === 'perfect') {
+        progress = c.perfectHits;
+        need = g.value;
+        label = '第 ' + c.level + ' 关 · ' + phasePrefix + 'PERFECT ' + progress + '/' + need;
       }
       targetLabelEl.textContent = label;
       const pct = Math.min(100, (progress / Math.max(1, need)) * 100);

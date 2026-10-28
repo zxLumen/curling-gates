@@ -15,7 +15,9 @@
 
 ![瞄准线与圆形增益区](docs/screenshots/aim-line.png)
 
-![第 5 关·重叠增益](docs/screenshots/campaign-level5.png)
+![第 3 关·弧线绕墙](docs/screenshots/campaign-level3.png)
+
+![第 5 关·重叠赌注](docs/screenshots/campaign-level5.png)
 
 ## 三种试玩方式
 
@@ -72,9 +74,12 @@ dist/curling-gates.html
 - **圆形增益区**：每个 buff 是一个**完整可触发的圆**，直径 = 设计宽度；金色内圆 = PERFECT；不再有方形/条带状的无效区域
 - **旋弧加大**：满旋横向约 2.0m，接近边线；旋转成为真正的路线选择
 - **收尾加速**：低速摩擦增强，最后 0.5 秒左右停稳；球间等待 1 秒，点击可跳过
-- **10 关手工布局**：从 3 排教学到 5 排首领；门宽、移动门、减益门、钉子阵逐关变化（详见 [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md)）
+- **10 关手工布局**：一关一个课题；第 3 关起中心路线不再通吃，侧瞄/预判/完美逐步加入（详见 [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md)）
 - **选关 + 逐关解锁**：未通过前一关不能选后一关；已解锁关卡可重玩
 - **每关独立配球**：没有过关三选一/升级/继承；每关使用预设冰球，进关重置
+- **少球预算**：普通关最多 3 颗、Boss 最多 5 颗；一关 3 球过不了就改布局，不加球
+- **机制递进**：分裂双列 → 弧线绕墙 → 巨力破墙 → 重叠赌注 → 移动时机 → 风险走廊 → 反弹银行 → PERFECT 精准 → 两阶段首领
+- **路径钉子/钉墙**：钉子可以放在轨道中段挡路、制造窄口
 - **失败无限重试**：本关球用光未达标 → 重试本关或返回选关，不消耗跨关资源
 - 8 种门：变大、分裂、加速、倍率、磁铁、穿透、变小+倍率、粘滞
 - **钉子连锁**：撞中一个钉子后，最多触发两代连锁，制造“一壶清一片”的反馈
@@ -129,7 +134,9 @@ curling-gates/
       ├─ campaign-menu.png
       ├─ campaign-level-select.png
       ├─ campaign-level1.png
+      ├─ campaign-level3.png
       ├─ campaign-level5.png
+      ├─ campaign-boss.png
       ├─ campaign-clear.png
       ├─ campaign-fail.png
       ├─ aim-line.png
