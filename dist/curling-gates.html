@@ -749,7 +749,7 @@ body {
   <div id="toast"></div>
 
   <div id="bottom">
-    <div id="hint">按住蓄力，左右拖动瞄准</div>
+    <div id="hint">按住蓄力，手指指向目标</div>
     <div id="ballBar" class="ball-bar hidden"></div>
     <div id="staminaWrap"><div id="stamina"></div></div>
     <div id="spinBar">
@@ -765,7 +765,7 @@ body {
       <h1>冰壶大作战</h1>
       <p class="tagline">吃门变强 · 分裂清屏 · 一壶爆分</p>
       <div class="how">
-        <div><b>1</b> 按住蓄力，左右拖动瞄准</div>
+        <div><b>1</b> 按住蓄力，手指指向目标</div>
         <div><b>2</b> 松手投掷，满力显示 MAX</div>
         <div><b>3</b> 滑行时按住屏幕擦冰</div>
         <div><b>4</b> 连续命中门叠倍率 · 右上角随时重开</div>
@@ -1171,6 +1171,7 @@ body {
       maxed: false,
       startX: 0,
       curX: 0,
+      curY: 0,
       power: 0,
       angle: 0
     },
@@ -1373,7 +1374,19 @@ body {
       ['shrink', 'sticky']
     );
 
-    const rows = [row1, row2, row3];
+    let rows = [row1, row2, row3];
+    if (level >= 2 && rng() < 0.45) {
+      const y4 = Math.min(26.2, y3 + 3.8 + rng() * 2.4);
+      rows.push(
+        makeRow(
+          y4,
+          rng() < 0.55 ? 1 : 2,
+          ['mult', 'magnet', 'pierce'],
+          ['sticky', 'shrink']
+        )
+      );
+    }
+
     if (level >= 2) {
       for (const row of rows) {
         for (const gate of row.gates) {
@@ -1575,7 +1588,7 @@ body {
     t.runSeed = (Math.random() * 1e9) | 0;
     t.floorSeed = hashSeed(t.runSeed, 1);
     t.options = [];
-    t.balls = [{ id: 'standard', level: 1, usedThisFloor: false }];
+    t.balls = [{ id: 'standard', level: 1, count: 1, used: 0 }];
     t.selectedBall = 0;
     t.upgraded = false;
     t.chosenOption = -1;
@@ -1586,15 +1599,18 @@ body {
 
   function startThrow() {
     game.phase = 'aim';
-    game.throwsTotal = game.mode === 'tower' ? Math.max(1, game.tower.balls.length) : 3;
+    game.throwsTotal =
+      game.mode === 'tower'
+        ? Math.max(1, game.tower.balls.reduce((sum, b) => sum + b.count, 0))
+        : 3;
     game.targetScore = game.mode === 'tower' ? game.tower.def : TARGET_SCORE;
     game.throwStartScore = game.score;
     game.throwMaxMult = 1;
     if (game.mode === 'tower') {
       const t = game.tower;
       let idx = t.selectedBall;
-      if (!t.balls[idx] || t.balls[idx].usedThisFloor) {
-        idx = t.balls.findIndex((b) => !b.usedThisFloor);
+      if (!t.balls[idx] || t.balls[idx].used >= t.balls[idx].count) {
+        idx = t.balls.findIndex((b) => b.used < b.count);
       }
       if (idx < 0) {
         resolveTowerFloor();
@@ -1658,7 +1674,7 @@ body {
     s.active = true;
     if (game.mode === 'tower') {
       const b = getSelectedBall();
-      b.usedThisFloor = true;
+      b.used += 1;
     }
     if (s.ballId === 'magnet') {
       s.magnetTimer = 4;
@@ -1726,7 +1742,7 @@ body {
         resolveTowerFloor();
         return;
       }
-      if (!game.tower.balls.some((b) => !b.usedThisFloor)) {
+      if (!game.tower.balls.some((b) => b.used < b.count)) {
         resolveTowerFloor();
         return;
       }
@@ -1842,16 +1858,20 @@ body {
 
       if (opt.kind === 'new') {
         const type = BALL_TYPES[opt.id];
+        const owned = t.balls.find((b) => b.id === opt.id);
+        const meta = owned
+          ? '新增 1 颗 · 已有 Lv.' + owned.level + ' ×' + owned.count
+          : '获得 Lv.1';
         btn.innerHTML =
           '<b>' + type.name + ' · 新冰球</b>' +
-          '<span class="ball-meta">获得 Lv.1（可重复种类）</span>' +
+          '<span class="ball-meta">' + meta + '</span>' +
           '<span class="ball-desc">' + type.desc + '</span>';
       } else if (opt.kind === 'upgrade') {
         const ball = t.balls[opt.index];
         const type = ballType(ball);
         btn.innerHTML =
           '<b>' + type.name + ' Lv.' + ball.level + ' → Lv.' + (ball.level + 1) + '</b>' +
-          '<span class="ball-meta">攻击 +18%</span>' +
+          '<span class="ball-meta">该种类全部 +18% 攻击</span>' +
           '<span class="ball-desc">' + type.desc + '</span>';
       } else {
         btn.innerHTML =
@@ -1871,8 +1891,14 @@ body {
     const opt = t.options[i];
     if (!opt) return;
     if (opt.kind === 'new') {
-      t.balls.push({ id: opt.id, level: 1, usedThisFloor: false });
-      t.selectedBall = t.balls.length - 1;
+      const existing = t.balls.findIndex((b) => b.id === opt.id);
+      if (existing >= 0) {
+        t.balls[existing].count += 1;
+        t.selectedBall = existing;
+      } else {
+        t.balls.push({ id: opt.id, level: 1, count: 1, used: 0 });
+        t.selectedBall = t.balls.length - 1;
+      }
     } else if (opt.kind === 'upgrade') {
       t.balls[opt.index].level = Math.min(5, t.balls[opt.index].level + 1);
       t.selectedBall = opt.index;
@@ -1900,15 +1926,18 @@ body {
     ballBar.style.justifyContent = t.balls.length <= 4 ? 'center' : 'flex-start';
     t.balls.forEach((ball, i) => {
       const type = ballType(ball);
+      const remaining = ball.count - ball.used;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'ball-chip';
-      if (i === t.selectedBall) btn.classList.add('selected');
-      if (ball.usedThisFloor) btn.classList.add('used');
-      btn.disabled = game.phase !== 'aim' || ball.usedThisFloor;
+      if (i === t.selectedBall && remaining > 0) btn.classList.add('selected');
+      if (remaining <= 0) btn.classList.add('used');
+      btn.disabled = game.phase !== 'aim' || remaining <= 0;
       btn.innerHTML =
         '<span class="ball-name">' +
         type.name.replace('球', '') +
+        ' ×' +
+        remaining +
         '</span><span class="ball-lv">Lv.' +
         ball.level +
         '</span>';
@@ -1927,7 +1956,7 @@ body {
   function selectBall(i) {
     const t = game.tower;
     if (game.mode !== 'tower' || game.phase !== 'aim') return;
-    if (t.balls[i] && t.balls[i].usedThisFloor) return;
+    if (!t.balls[i] || t.balls[i].used >= t.balls[i].count) return;
     t.selectedBall = i;
     const s = game.stones[0];
     if (s) {
@@ -1969,7 +1998,7 @@ body {
     t.options = [];
     t.upgraded = false;
     t.chosenOption = -1;
-    t.balls.forEach((b) => { b.usedThisFloor = false; });
+    t.balls.forEach((b) => { b.used = 0; });
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -1983,7 +2012,7 @@ body {
     t.upgraded = false;
     t.options = [];
     t.chosenOption = -1;
-    t.balls.forEach((b) => { b.usedThisFloor = false; });
+    t.balls.forEach((b) => { b.used = 0; });
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -2092,8 +2121,12 @@ body {
   }
 
   function updateAimAngle() {
-    const dx = game.aim.curX - game.aim.startX;
-    game.aim.angle = clamp(-(dx / AIM_DRAG_PX) * 0.55, -0.55, 0.55);
+    const stone = game.stones[0];
+    if (!stone) return;
+    const p = project(stone.x, stone.y);
+    const dx = game.aim.curX - p.sx;
+    const dy = p.sy - game.aim.curY;
+    game.aim.angle = clamp(Math.atan2(dx, Math.max(20, dy)), -0.62, 0.62);
   }
 
   function setSpin(v) {
@@ -2123,8 +2156,10 @@ body {
       game.aim.maxed = false;
       game.aim.startX = p.x;
       game.aim.curX = p.x;
+      game.aim.curY = p.y;
       game.aim.power = 0;
       game.aim.angle = 0;
+      updateAimAngle();
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     } else if (game.phase === 'slide') {
       game.sweeping = true;
@@ -2135,6 +2170,7 @@ body {
     if (game.phase === 'aim' && game.aim.charging) {
       const p = getPointerPos(e);
       game.aim.curX = p.x;
+      game.aim.curY = p.y;
       updateAimAngle();
     }
   });
@@ -2420,19 +2456,16 @@ body {
   function checkGateCrossing(s, prevY) {
     for (const row of game.gates) {
       if (!(prevY < row.y && s.y >= row.y)) continue;
-      let hitGate = false;
+      const matches = [];
       for (const g of row.gates) {
         if (g.used) continue;
         const gx = gateX(g);
-        const half = g.w / 2;
-        if (Math.abs(s.x - gx) <= half) {
-          g.used = true;
-          hitGate = true;
-          applyGate(s, g, row, gx);
-          break;
+        if (Math.abs(s.x - gx) <= g.w / 2) {
+          matches.push({ g, gx });
         }
       }
-      if (!hitGate) {
+
+      if (matches.length === 0) {
         const hadChain = game.gateChain > 0;
         game.gateChain = 0;
         addPopup(
@@ -2442,6 +2475,19 @@ body {
           'rgba(255,93,108,0.85)',
           0.55
         );
+        continue;
+      }
+
+      // 如果同时吃到多个门，全部生效；分裂门放最后，让子球继承前面的增益。
+      matches.sort((a, b) => {
+        const sa = a.g.type === 'split' ? 1 : 0;
+        const sb = b.g.type === 'split' ? 1 : 0;
+        return sa - sb;
+      });
+      for (const hit of matches) {
+        hit.g.used = true;
+        applyGate(s, hit.g, row, hit.gx);
+        if (!s.alive) break;
       }
     }
   }
@@ -3102,14 +3148,14 @@ body {
         const gx = gateX(g);
         const p = project(gx, row.y);
         const half = (g.w / 2) * p.ppm;
-        const h = clamp(62 * p.scale, 24, 58);
+        const bandH = Math.max(18, 0.7 * p.ppm);
 
         ctx.save();
         ctx.globalAlpha = g.used ? 0.22 : 1;
 
-        // portal (no shadowBlur: 移动端性能优先)
-        roundRect(ctx, p.sx - half, p.sy - h * 0.9, half * 2, h * 1.8, Math.min(16, half * 0.35));
-        ctx.fillStyle = color + '1c';
+        // Actual trigger zone: a horizontal band whose width is exactly g.w.
+        roundRect(ctx, p.sx - half, p.sy - bandH / 2, half * 2, bandH, bandH / 2);
+        ctx.fillStyle = color + '30';
         ctx.fill();
         ctx.strokeStyle = color + '55';
         ctx.lineWidth = 6;
@@ -3118,39 +3164,55 @@ body {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // edge posts
-        ctx.strokeStyle = color + 'aa';
+        // Perfect zone: exactly the center 30% of the trigger width.
+        const perfectW = g.w * 0.3 * p.ppm;
+        roundRect(
+          ctx,
+          p.sx - perfectW / 2,
+          p.sy - bandH / 2 + 3,
+          perfectW,
+          bandH - 6,
+          Math.max(2, (bandH - 6) / 2)
+        );
+        ctx.fillStyle = 'rgba(255,211,77,0.22)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,211,77,0.75)';
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(p.sx - half, p.sy - h * 0.9);
-        ctx.lineTo(p.sx - half, p.sy + h * 0.9);
-        ctx.moveTo(p.sx + half, p.sy - h * 0.9);
-        ctx.lineTo(p.sx + half, p.sy + h * 0.9);
         ctx.stroke();
 
-        // icon
-        const iconSize = clamp(20 * p.scale + 6, 12, 22);
+        // short edge posts
+        ctx.strokeStyle = color + 'aa';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(p.sx - half, p.sy - bandH / 2 - 4);
+        ctx.lineTo(p.sx - half, p.sy + bandH / 2 + 4);
+        ctx.moveTo(p.sx + half, p.sy - bandH / 2 - 4);
+        ctx.lineTo(p.sx + half, p.sy + bandH / 2 + 4);
+        ctx.stroke();
+
+        // icon above the band
+        const iconSize = clamp(19 * p.scale + 5, 11, 21);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffffff';
         ctx.font = '800 ' + iconSize + 'px "PingFang SC","Microsoft YaHei",sans-serif';
-        ctx.fillText(def.icon, p.sx, p.sy - h * 0.16);
+        ctx.fillText(def.icon, p.sx, p.sy - bandH / 2 - iconSize * 0.7);
 
-        // value
+        // value below the band
         ctx.fillStyle = color;
-        ctx.font = '700 ' + clamp(10 * p.scale + 5, 8, 12) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
-        ctx.fillText(def.value, p.sx, p.sy + h * 0.44);
+        ctx.font = '700 ' + clamp(9 * p.scale + 5, 8, 12) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.fillText(def.value, p.sx, p.sy + bandH / 2 + 10);
 
         if (g.move) {
           ctx.fillStyle = color + 'cc';
           ctx.font = '700 9px "PingFang SC","Microsoft YaHei",sans-serif';
-          ctx.fillText('↔', p.sx, p.sy + h * 0.78);
+          ctx.fillText('↔', p.sx, p.sy + bandH / 2 + 22);
         }
 
         if (g.used) {
-          ctx.fillStyle = 'rgba(255,255,255,0.8)';
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
           ctx.font = '700 12px sans-serif';
-          ctx.fillText('✓', p.sx, p.sy + h * 0.1);
+          ctx.fillText('✓', p.sx, p.sy);
         }
         ctx.restore();
       }
@@ -3389,6 +3451,52 @@ body {
     ctx.restore();
   }
 
+  function drawAimLine(p, r) {
+    if (!game.aim.charging) return;
+    const tx = game.aim.curX;
+    const ty = game.aim.curY;
+    const dx = tx - p.sx;
+    const dy = ty - p.sy;
+    const len = Math.hypot(dx, dy);
+    if (len < 14) return;
+
+    const nx = dx / len;
+    const ny = dy / len;
+    const far = Math.max(W, H) * 1.3;
+    const ex = p.sx + nx * far;
+    const ey = p.sy + ny * far;
+
+    ctx.save();
+    ctx.setLineDash([10, 8]);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(95,227,255,0.95)';
+    ctx.shadowColor = 'rgba(95,227,255,0.65)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(p.sx, p.sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(234,247,255,0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 11, 0, TAU);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tx - 17, ty);
+    ctx.lineTo(tx - 6, ty);
+    ctx.moveTo(tx + 6, ty);
+    ctx.lineTo(tx + 17, ty);
+    ctx.moveTo(tx, ty - 17);
+    ctx.lineTo(tx, ty - 6);
+    ctx.moveTo(tx, ty + 6);
+    ctx.lineTo(tx, ty + 17);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawAim() {
     if (game.phase !== 'aim') return;
     const stone = game.stones[0];
@@ -3404,7 +3512,7 @@ body {
         ctx.save();
         ctx.setLineDash([4, 7]);
         ctx.lineWidth = 2;
-        ctx.strokeStyle = 'rgba(95,227,255,0.72)';
+        ctx.strokeStyle = 'rgba(95,227,255,0.30)';
         ctx.beginPath();
         for (let i = 0; i < solid; i++) {
           const q = project(pts[i].x, pts[i].y);
@@ -3414,7 +3522,7 @@ body {
         ctx.stroke();
 
         // 后半段淡出，提示真实停点
-        ctx.strokeStyle = 'rgba(95,227,255,0.22)';
+        ctx.strokeStyle = 'rgba(95,227,255,0.10)';
         ctx.beginPath();
         for (let i = solid - 1; i < n; i++) {
           const q = project(pts[i].x, pts[i].y);
@@ -3429,9 +3537,9 @@ body {
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.arc(q.sx, q.sy, Math.max(3, stone.r * q.ppm), 0, TAU);
-        ctx.fillStyle = 'rgba(95,227,255,0.2)';
+        ctx.fillStyle = 'rgba(95,227,255,0.08)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(95,227,255,0.7)';
+        ctx.strokeStyle = 'rgba(95,227,255,0.35)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.restore();
@@ -3474,6 +3582,7 @@ body {
       ctx.restore();
     }
 
+    drawAimLine(p, r);
     drawPowerBar(p, r);
   }
 
@@ -3639,7 +3748,7 @@ body {
             ? 'MAX · 松手投掷'
             : '力度 ' + Math.round(game.aim.power * 100) + '% · 松手投掷';
       } else {
-        hintEl.textContent = '按住蓄力，左右拖动瞄准';
+        hintEl.textContent = '按住蓄力，手指指向目标';
       }
     } else if (game.phase === 'between') {
       hintEl.textContent = '点击继续';
@@ -3749,6 +3858,16 @@ body {
       for (let i = 0; i < n; i++) update(FIXED);
       render();
       updateHUD();
+    },
+    debugAim() {
+      const s = game.stones[0];
+      return {
+        W,
+        H,
+        p: s ? project(s.x, s.y) : null,
+        stone: s,
+        aim: game.aim
+      };
     },
     info() {
       return {
