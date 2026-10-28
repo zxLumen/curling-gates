@@ -20,7 +20,22 @@
   const hintEl = document.getElementById('hint');
   const overlayEl = document.getElementById('overlay');
   const startBtn = document.getElementById('startBtn');
+  const towerBtn = document.getElementById('towerBtn');
+  const homeBtn = document.getElementById('homeBtn');
+  const footnoteEl = document.getElementById('footnote');
+  const towerOverlay = document.getElementById('towerOverlay');
+  const towerBadge = document.getElementById('towerBadge');
+  const towerTitle = document.getElementById('towerTitle');
+  const towerSub = document.getElementById('towerSub');
+  const towerStones = document.getElementById('towerStones');
+  const towerTip = document.getElementById('towerTip');
+  const towerAtk = document.getElementById('towerAtk');
+  const towerRunes = document.getElementById('towerRunes');
+  const towerNextBtn = document.getElementById('towerNextBtn');
+  const towerRetryBtn = document.getElementById('towerRetryBtn');
+  const towerEndBtn = document.getElementById('towerEndBtn');
   const resultStatsEl = document.getElementById('resultStats');
+  const restartBtn = document.getElementById('restartBtn');
   const muteBtn = document.getElementById('muteBtn');
 
   // =========================================================================
@@ -43,10 +58,20 @@
   const GATE_MULT_MAX = 5;
   const COMBO_MULT_MAX = 6;
   const TOTAL_MULT_MAX = 20;
-  const SLIDE_TIME_SCALE = 1.55;
+  const SLIDE_TIME_SCALE = 1.15;
+  const CURL_ACCEL = 0.26;
+  const CHARGE_TIME = 1.05;
+  const CHARGE_MIN = 0.18;
+  const AIM_DRAG_PX = 110;
   const TARGET_SCORE = 6000;
   const THREE_STAR_SCORE = 10000;
   const BEST_KEY = 'curling-gates-best-v1';
+  const SPIN_KEY = 'curling-gates-spin-v1';
+  const TOWER_BEST_KEY = 'curling-gates-tower-best-v1';
+  const TOWER_BASE_DEF = 2000;
+  const TOWER_DEF_GROWTH = 1.55;
+  const TOWER_MAX_HEARTS = 5;
+  const TOWER_MAX_SLOTS = 6;
 
   const GATE_COLORS = {
     growth: '#39e58c',
@@ -101,6 +126,39 @@
   function saveBest(v) {
     try {
       localStorage.setItem(BEST_KEY, String(v));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function loadSpin() {
+    try {
+      const v = Number(localStorage.getItem(SPIN_KEY));
+      return v === -1 || v === 1 ? v : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function saveSpin(v) {
+    try {
+      localStorage.setItem(SPIN_KEY, String(v));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function loadTowerBest() {
+    try {
+      return Number(localStorage.getItem(TOWER_BEST_KEY) || 0) || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function saveTowerBest(v) {
+    try {
+      localStorage.setItem(TOWER_BEST_KEY, String(v));
     } catch (e) {
       /* ignore */
     }
@@ -228,6 +286,10 @@
       sweep() {
         noise(0.08, 0.1, 2600);
       },
+      charge(stage) {
+        tone(280 + stage * 150, 0.05, 'square', 0.1);
+        if (stage >= 4) tone(1200, 0.08, 'triangle', 0.12);
+      },
       clear() {
         [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.2, 'triangle', 0.2, null, i * 0.07));
       },
@@ -277,11 +339,12 @@
     popups: [],
     snow: [],
     aim: {
-      dragging: false,
+      charging: false,
+      chargeTime: 0,
+      chargeStage: 0,
+      maxed: false,
       startX: 0,
-      startY: 0,
       curX: 0,
-      curY: 0,
       power: 0,
       angle: 0
     },
@@ -295,6 +358,20 @@
     flash: 0,
     slowTimer: 0,
     paused: false,
+    mode: 'quick',
+    tower: {
+      floor: 1,
+      def: TOWER_BASE_DEF,
+      hearts: 3,
+      stones: [1, 1, 1],
+      runeAtk: 0,
+      bonusThrows: 0,
+      floorDamage: 0,
+      bestFloor: 0,
+      selected: [],
+      runeChosen: false,
+      runeId: null
+    },
     time: 0
   };
 
@@ -404,6 +481,18 @@
     return 0;
   }
 
+  function stoneBonus() {
+    let bonus = 0;
+    for (const lv of game.tower.stones) {
+      bonus += 0.1 * (Math.pow(2, lv - 1) - 1);
+    }
+    return bonus;
+  }
+
+  function towerAtkBonus() {
+    return stoneBonus() + game.tower.runeAtk;
+  }
+
   function haptic(pattern) {
     try {
       if (navigator.vibrate) navigator.vibrate(pattern);
@@ -462,11 +551,11 @@
   }
 
   let toastTimer = null;
-  function showToast(text) {
+  function showToast(text, duration) {
     toastEl.textContent = text;
     toastEl.classList.add('show');
     if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration || 1000);
   }
 
   function clearMoment() {
@@ -485,8 +574,24 @@
   // =========================================================================
   // Game flow
   // =========================================================================
-  function startGame() {
+  function startGame(mode) {
     AudioFX.init();
+    const nextMode = mode || game.mode || 'quick';
+    game.mode = nextMode;
+    overlayEl.classList.remove('show');
+    overlayEl.style.display = 'none';
+    overlayEl.classList.remove('result');
+    resultStatsEl.classList.add('hidden');
+    towerOverlay.classList.add('hidden');
+
+    if (nextMode === 'tower') {
+      startTower();
+    } else {
+      startQuick();
+    }
+  }
+
+  function resetRunBase() {
     game.score = 0;
     game.displayScore = 0;
     game.throwIndex = 0;
@@ -498,19 +603,39 @@
     game.maxCombo = 0;
     game.maxChain = 0;
     game.gateChain = 0;
-    game.targetScore = TARGET_SCORE;
     game.cleared = false;
     game.best = loadBest();
-    game.runTotalPins = game.throwsTotal * buildPins().length;
-    overlayEl.classList.remove('show');
-    overlayEl.style.display = 'none';
-    resultStatsEl.classList.add('hidden');
-    overlayEl.classList.remove('result');
+  }
+
+  function startQuick() {
+    resetRunBase();
+    game.targetScore = TARGET_SCORE;
+    game.runTotalPins = 3 * buildPins().length;
+    startThrow();
+  }
+
+  function startTower() {
+    resetRunBase();
+    const t = game.tower;
+    t.floor = 1;
+    t.def = TOWER_BASE_DEF;
+    t.hearts = 3;
+    t.stones = [1, 1, 1];
+    t.runeAtk = 0;
+    t.bonusThrows = 0;
+    t.floorDamage = 0;
+    t.bestFloor = loadTowerBest();
+    t.selected = [];
+    t.runeChosen = false;
+    game.targetScore = TOWER_BASE_DEF;
+    game.runTotalPins = 0;
     startThrow();
   }
 
   function startThrow() {
     game.phase = 'aim';
+    game.throwsTotal = game.mode === 'tower' ? 3 + game.tower.bonusThrows : 3;
+    game.targetScore = game.mode === 'tower' ? game.tower.def : TARGET_SCORE;
     game.throwStartScore = game.score;
     game.throwMaxMult = 1;
     game.stones = [makeStone(0, WORLD.releaseY)];
@@ -526,18 +651,21 @@
     game.waveMoment = false;
     game.hitStop = 0;
     game.cleared = false;
-    game.aim.dragging = false;
+    game.aim.charging = false;
+    game.aim.chargeTime = 0;
+    game.aim.chargeStage = 0;
+    game.aim.maxed = false;
     game.aim.power = 0;
     game.aim.angle = 0;
-    game.spin = 0;
     setSpinUI();
     game.sweeping = false;
     game.stamina = 1;
     game.sweepSfxTimer = 0;
-    game.settleTimer = 0.75;
+    game.settleTimer = 0.3;
     game.betweenTimer = 0;
     game.particles = [];
     game.popups = [];
+    toastEl.classList.remove('show');
     updateHUD();
   }
 
@@ -545,16 +673,16 @@
     const s = game.stones[0];
     if (!s || !s.alive) return;
     const power = clamp(game.aim.power, 0, 1);
-    if (power < 0.1) return;
+    if (power < CHARGE_MIN) return;
     const speed = 4.5 + power * 7.0;
     s.vx = Math.sin(game.aim.angle) * speed;
     s.vy = Math.cos(game.aim.angle) * speed;
     s.spin = game.spin;
     s.active = true;
     game.phase = 'slide';
-    game.aim.dragging = false;
+    game.aim.charging = false;
     game.aim.power = 0;
-    game.settleTimer = 0.75;
+    game.settleTimer = 0.3;
     game.sweeping = false;
     AudioFX.throwStone();
   }
@@ -573,12 +701,30 @@
     game.lastThrowScore = gained;
     game.phase = 'between';
     game.settleTimer = 0;
-    game.betweenTimer = 1.9;
+    game.betweenTimer = 1.0;
     game.sweeping = false;
-    showToast('第 ' + (game.throwIndex + 1) + ' 壶 +' + fmt(gained) + (clearBonus ? ' · 清屏!' : ''));
+
+    if (game.mode === 'tower') {
+      const damage = Math.round(gained * (1 + towerAtkBonus()));
+      game.tower.floorDamage += damage;
+      game.throwStartScore = game.score;
+      showToast('第 ' + (game.throwIndex + 1) + ' 壶 +' + fmt(damage) + ' 伤害', 900);
+    } else {
+      showToast('第 ' + (game.throwIndex + 1) + ' 壶 +' + fmt(gained) + (clearBonus ? ' · 清屏!' : ''), 900);
+    }
   }
 
   function nextThrow() {
+    if (game.mode === 'tower') {
+      game.throwIndex += 1;
+      if (game.throwIndex >= game.throwsTotal) {
+        resolveTowerFloor();
+        return;
+      }
+      startThrow();
+      return;
+    }
+
     game.throwIndex += 1;
     if (game.throwIndex >= game.throwsTotal) {
       showResult();
@@ -587,18 +733,235 @@
     startThrow();
   }
 
+  function resolveTowerFloor() {
+    const t = game.tower;
+    if (t.floorDamage >= t.def) {
+      t.bestFloor = Math.max(t.bestFloor, t.floor);
+      saveTowerBest(t.bestFloor);
+      if (t.stones.length < TOWER_MAX_SLOTS) {
+        t.stones.push(1);
+      } else {
+        t.runeAtk += 0.05;
+      }
+      AudioFX.win();
+      haptic([20, 30, 40]);
+      showTowerClear();
+      return;
+    }
+
+    t.hearts = Math.max(0, t.hearts - 1);
+    if (t.hearts <= 0) {
+      t.bestFloor = Math.max(t.bestFloor, t.floor - 1);
+      saveTowerBest(t.bestFloor);
+      AudioFX.fail();
+      showResult();
+      return;
+    }
+    AudioFX.fail();
+    haptic(20);
+    showTowerFail();
+  }
+
+  function showTowerClear() {
+    const t = game.tower;
+    game.phase = 'towerClear';
+    towerOverlay.classList.remove('hidden');
+    towerBadge.textContent = '第 ' + t.floor + ' 层突破';
+    towerTitle.textContent = '选择强化';
+    towerSub.textContent = '伤害 ' + fmt(t.floorDamage) + ' / 防御 ' + fmt(t.def);
+    towerStones.classList.remove('hidden');
+    towerTip.classList.remove('hidden');
+    towerAtk.classList.remove('hidden');
+    towerRunes.classList.remove('hidden');
+    towerNextBtn.classList.remove('hidden');
+    towerNextBtn.textContent = '进入第 ' + (t.floor + 1) + ' 层';
+    towerRetryBtn.classList.add('hidden');
+    towerEndBtn.classList.add('hidden');
+    t.selected = [];
+    t.runeChosen = false;
+    t.runeId = null;
+    renderTowerStones();
+    renderTowerRunes();
+    updateTowerAtkLabel();
+  }
+
+  function showTowerFail() {
+    const t = game.tower;
+    game.phase = 'towerFail';
+    towerOverlay.classList.remove('hidden');
+    towerBadge.textContent = '第 ' + t.floor + ' 层';
+    towerTitle.textContent = '防御不足';
+    towerSub.textContent =
+      '伤害 ' + fmt(t.floorDamage) + ' / 防御 ' + fmt(t.def) + ' · 剩余 ' + t.hearts + ' 心';
+    towerStones.classList.add('hidden');
+    towerTip.classList.add('hidden');
+    towerAtk.classList.add('hidden');
+    towerRunes.classList.add('hidden');
+    towerNextBtn.classList.add('hidden');
+    towerRetryBtn.classList.remove('hidden');
+    towerRetryBtn.textContent = '重试本层（❤' + t.hearts + '）';
+    towerEndBtn.classList.remove('hidden');
+    towerEndBtn.textContent = '放弃回主页';
+  }
+
+  function renderTowerStones() {
+    const t = game.tower;
+    towerStones.innerHTML = '';
+    for (let i = 0; i < TOWER_MAX_SLOTS; i++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stone-btn';
+      if (i >= t.stones.length) {
+        btn.classList.add('empty');
+        btn.disabled = true;
+        btn.textContent = '—';
+      } else {
+        const lv = t.stones[i];
+        const pct = Math.round(0.1 * (Math.pow(2, lv - 1) - 1) * 100);
+        btn.innerHTML = '<b>Lv.' + lv + '</b><span class="lvl">+' + pct + '%</span>';
+        if (t.selected.includes(i)) btn.classList.add('selected');
+        btn.addEventListener('click', () => selectStone(i));
+      }
+      towerStones.appendChild(btn);
+    }
+  }
+
+  function selectStone(i) {
+    const t = game.tower;
+    if (t.selected.includes(i)) {
+      t.selected = t.selected.filter((x) => x !== i);
+      renderTowerStones();
+      return;
+    }
+    if (t.selected.length === 0) {
+      t.selected = [i];
+      renderTowerStones();
+      return;
+    }
+    const a = t.selected[0];
+    if (t.stones[a] === t.stones[i] && t.stones[a] < 5) {
+      const level = t.stones[a];
+      const hi = Math.max(a, i);
+      const lo = Math.min(a, i);
+      t.stones.splice(hi, 1);
+      t.stones.splice(lo, 1);
+      t.stones.push(level + 1);
+      t.selected = [];
+      AudioFX.gate();
+      haptic(10);
+      renderTowerStones();
+      updateTowerAtkLabel();
+      return;
+    }
+    if (t.stones[a] === t.stones[i] && t.stones[a] >= 5) {
+      showToast('已满级', 700);
+    }
+    t.selected = [i];
+    renderTowerStones();
+  }
+
+  function renderTowerRunes() {
+    const t = game.tower;
+    towerRunes.innerHTML = '';
+    const opts = [
+      { id: 'throw', label: '+1 壶（最多 5 壶）', disabled: t.bonusThrows >= 2 },
+      { id: 'atk', label: '攻击 +10%', disabled: false },
+      { id: 'heart', label: '+1 心（最多 5 心）', disabled: t.hearts >= TOWER_MAX_HEARTS }
+    ];
+    for (const opt of opts) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'rune-btn';
+      btn.textContent = opt.label;
+      if (opt.disabled) btn.disabled = true;
+      if (t.runeChosen && t.runeId === opt.id) btn.classList.add('chosen');
+      btn.addEventListener('click', () => applyRune(opt.id));
+      towerRunes.appendChild(btn);
+    }
+  }
+
+  function applyRune(id) {
+    const t = game.tower;
+    if (t.runeChosen) return;
+    t.runeChosen = true;
+    t.runeId = id;
+    if (id === 'throw') t.bonusThrows = Math.min(2, t.bonusThrows + 1);
+    if (id === 'atk') t.runeAtk += 0.1;
+    if (id === 'heart') t.hearts = Math.min(TOWER_MAX_HEARTS, t.hearts + 1);
+    AudioFX.gate();
+    haptic(10);
+    renderTowerRunes();
+    updateTowerAtkLabel();
+  }
+
+  function updateTowerAtkLabel() {
+    towerAtk.textContent =
+      '攻击加成 +' +
+      Math.round(towerAtkBonus() * 100) +
+      '% · 石头 +' +
+      Math.round(stoneBonus() * 100) +
+      '%';
+  }
+
+  function nextTowerFloor() {
+    const t = game.tower;
+    towerOverlay.classList.add('hidden');
+    t.floor += 1;
+    t.def = Math.round(t.def * TOWER_DEF_GROWTH);
+    t.floorDamage = 0;
+    t.selected = [];
+    t.runeChosen = false;
+    t.runeId = null;
+    game.throwIndex = 0;
+    game.throwScores = [];
+    game.phase = 'aim';
+    startThrow();
+  }
+
+  function retryTowerFloor() {
+    const t = game.tower;
+    towerOverlay.classList.add('hidden');
+    t.floorDamage = 0;
+    t.selected = [];
+    t.runeChosen = false;
+    t.runeId = null;
+    game.throwIndex = 0;
+    game.throwScores = [];
+    game.phase = 'aim';
+    startThrow();
+  }
+
   function showResult() {
     game.phase = 'result';
+    overlayEl.style.display = 'flex';
+    overlayEl.classList.add('show');
+    overlayEl.classList.add('result');
+    resultStatsEl.classList.remove('hidden');
+    homeBtn.classList.remove('hidden');
+    towerBtn.classList.add('hidden');
+
+    if (game.mode === 'tower') {
+      const t = game.tower;
+      startBtn.textContent = '重新爬塔';
+      footnoteEl.textContent = '爬塔模式 · 最高第 ' + t.bestFloor + ' 层';
+      resultStatsEl.innerHTML =
+        '<div class="rs-row"><span>到达层数</span><b>第 ' + t.floor + ' 层</b></div>' +
+        '<div class="rs-row"><span>最高层数</span><b>第 ' + t.bestFloor + ' 层</b></div>' +
+        '<div class="rs-row"><span>剩余心数</span><b>' + '❤'.repeat(Math.max(0, t.hearts)) + '</b></div>' +
+        '<div class="rs-row"><span>攻击加成</span><b>+' + Math.round(towerAtkBonus() * 100) + '%</b></div>' +
+        '<div class="rs-row"><span>通关层数</span><b>' + Math.max(0, t.floor - 1) + '</b></div>';
+      AudioFX.fail();
+      haptic(20);
+      return;
+    }
+
     const score = Math.round(game.score);
     if (score > game.best) {
       game.best = score;
       saveBest(score);
     }
-    overlayEl.style.display = 'flex';
-    overlayEl.classList.add('show');
     startBtn.textContent = '再来一局';
-    resultStatsEl.classList.remove('hidden');
-    overlayEl.classList.add('result');
+    footnoteEl.textContent = '3 壶 · 目标 6,000 · 3 星 10,000';
     const stars = starsFor(score);
     const starText = '★'.repeat(stars) + '☆'.repeat(3 - stars);
     let hint;
@@ -629,16 +992,28 @@
 
   function showMenu() {
     game.phase = 'menu';
+    game.mode = 'quick';
+    game.score = 0;
+    game.displayScore = 0;
+    game.throwIndex = 0;
+    game.throwsTotal = 3;
     game.gates = buildGates();
     game.pins = buildPins();
     game.totalPins = game.pins.length;
     game.stones = [makeStone(0, WORLD.releaseY)];
+    game.tower.bestFloor = loadTowerBest();
     overlayEl.style.display = 'flex';
     overlayEl.classList.add('show');
-    startBtn.textContent = '开始挑战';
+    overlayEl.classList.remove('result');
+    startBtn.textContent = '爽快模式';
+    towerBtn.textContent = '爬塔模式';
+    towerBtn.classList.remove('hidden');
+    homeBtn.classList.add('hidden');
+    footnoteEl.textContent = '3 壶 · 目标 6,000 · 3 星 10,000';
+    towerOverlay.classList.add('hidden');
     resultStatsEl.classList.add('hidden');
     resultStatsEl.innerHTML = '';
-    overlayEl.classList.remove('result');
+    setSpinUI();
   }
 
   // =========================================================================
@@ -652,16 +1027,14 @@
     };
   }
 
-  function updateAim() {
-    const dx = game.aim.startX - game.aim.curX;
-    const dy = game.aim.startY - game.aim.curY;
-    const len = Math.hypot(dx, dy);
-    game.aim.power = clamp(len / 240, 0, 1);
-    game.aim.angle = clamp(Math.atan2(dx, -dy), -0.55, 0.55);
+  function updateAimAngle() {
+    const dx = game.aim.curX - game.aim.startX;
+    game.aim.angle = clamp((dx / AIM_DRAG_PX) * 0.55, -0.55, 0.55);
   }
 
   function setSpin(v) {
     game.spin = v;
+    saveSpin(v);
     setSpinUI();
   }
 
@@ -673,13 +1046,19 @@
 
   canvas.addEventListener('pointerdown', (e) => {
     AudioFX.init();
+    if (game.phase === 'between') {
+      nextThrow();
+      return;
+    }
     if (game.phase === 'aim') {
+      if (game.aim.charging) return;
       const p = getPointerPos(e);
-      game.aim.dragging = true;
+      game.aim.charging = true;
+      game.aim.chargeTime = 0;
+      game.aim.chargeStage = 0;
+      game.aim.maxed = false;
       game.aim.startX = p.x;
-      game.aim.startY = p.y;
       game.aim.curX = p.x;
-      game.aim.curY = p.y;
       game.aim.power = 0;
       game.aim.angle = 0;
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -689,21 +1068,21 @@
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (game.phase === 'aim' && game.aim.dragging) {
+    if (game.phase === 'aim' && game.aim.charging) {
       const p = getPointerPos(e);
       game.aim.curX = p.x;
-      game.aim.curY = p.y;
-      updateAim();
+      updateAimAngle();
     }
   });
 
   function endPointer() {
-    if (game.phase === 'aim' && game.aim.dragging) {
-      game.aim.dragging = false;
-      if (game.aim.power > 0.1) {
+    if (game.phase === 'aim' && game.aim.charging) {
+      game.aim.charging = false;
+      if (game.aim.power >= CHARGE_MIN) {
         doThrow();
       } else {
         game.aim.power = 0;
+        showToast('按住蓄力再松手', 700);
       }
     }
     if (game.phase === 'slide') {
@@ -712,7 +1091,11 @@
   }
 
   canvas.addEventListener('pointerup', endPointer);
-  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointercancel', () => {
+    game.aim.charging = false;
+    game.aim.power = 0;
+    game.sweeping = false;
+  });
 
   document.querySelectorAll('.spin-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -723,7 +1106,44 @@
 
   startBtn.addEventListener('click', () => {
     AudioFX.init();
+    startGame(game.mode === 'tower' ? 'tower' : 'quick');
+  });
+
+  towerBtn.addEventListener('click', () => {
+    AudioFX.init();
+    startGame('tower');
+  });
+
+  homeBtn.addEventListener('click', () => {
+    AudioFX.init();
+    showMenu();
+  });
+
+  towerNextBtn.addEventListener('click', () => {
+    AudioFX.init();
+    if (game.phase === 'towerClear') nextTowerFloor();
+  });
+
+  towerRetryBtn.addEventListener('click', () => {
+    AudioFX.init();
+    if (game.phase === 'towerFail') retryTowerFloor();
+  });
+
+  towerEndBtn.addEventListener('click', () => {
+    AudioFX.init();
+    showMenu();
+  });
+
+  function restartRun() {
     startGame();
+    showToast('已重开', 700);
+    haptic(10);
+  }
+
+  restartBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    AudioFX.init();
+    restartRun();
   });
 
   muteBtn.addEventListener('click', () => {
@@ -738,7 +1158,7 @@
       e.preventDefault();
       if (game.phase === 'slide') game.sweeping = true;
     } else if (e.code === 'KeyR') {
-      startGame();
+      restartRun();
     } else if (e.code === 'KeyA') {
       setSpin(-1);
     } else if (e.code === 'KeyD') {
@@ -760,7 +1180,7 @@
   function stepStone(s, dt) {
     if (!s.alive) return;
     const speed = Math.hypot(s.vx, s.vy);
-    if (speed < 0.07) {
+    if (speed < 0.15) {
       s.vx = 0;
       s.vy = 0;
       return;
@@ -768,7 +1188,8 @@
 
     const sweep = game.sweeping && game.stamina > 0;
     const sizeFactor = clamp(1.15 - 0.15 * (s.r / R0), 0.7, 1.15);
-    let fr = s.friction * sizeFactor;
+    const lowSpeed = clamp((1.6 - speed) / 1.6, 0, 1);
+    let fr = s.friction * sizeFactor * (1 + 1.4 * lowSpeed);
     if (sweep) fr *= 0.75;
 
     const dec = Math.min(speed, fr * dt);
@@ -777,7 +1198,7 @@
 
     const sp = Math.hypot(s.vx, s.vy);
     if (sp > 0.15 && s.spin !== 0) {
-      const curl = s.spin * 0.14 * (sweep ? 0.7 : 1) * (sp / 8);
+      const curl = s.spin * CURL_ACCEL * (0.6 + 0.4 * (sp / 8)) * (sweep ? 0.7 : 1);
       const nx = s.vx / sp;
       const ny = s.vy / sp;
       s.vx += ny * curl * dt;
@@ -1189,7 +1610,7 @@
 
   function allStonesDone() {
     if (game.stones.length === 0) return true;
-    return game.stones.every((s) => !s.alive || Math.hypot(s.vx, s.vy) < 0.08);
+    return game.stones.every((s) => !s.alive || Math.hypot(s.vx, s.vy) < 0.16);
   }
 
   // =========================================================================
@@ -1197,6 +1618,21 @@
   // =========================================================================
   function update(dt) {
     game.time += dt;
+
+    if (game.phase === 'aim' && game.aim.charging) {
+      game.aim.chargeTime += dt;
+      const power = clamp(game.aim.chargeTime / CHARGE_TIME, 0, 1);
+      game.aim.power = power;
+      const stage = Math.min(4, Math.floor(power * 4));
+      if (stage > game.aim.chargeStage) {
+        game.aim.chargeStage = stage;
+        AudioFX.charge(stage);
+        haptic(stage >= 4 ? 12 : 4);
+      }
+      if (power >= 1 && !game.aim.maxed) {
+        game.aim.maxed = true;
+      }
+    }
 
     if (game.phase === 'slide' && game.sweeping && game.stamina > 0) {
       game.stamina = Math.max(0, game.stamina - dt / 2.2);
@@ -1227,7 +1663,7 @@
         game.settleTimer -= dt;
         if (game.settleTimer <= 0) finishThrow();
       } else {
-        game.settleTimer = 0.75;
+        game.settleTimer = 0.3;
       }
     } else if (game.phase === 'between') {
       game.betweenTimer -= dt;
@@ -1278,13 +1714,15 @@
     const pts = [];
     for (let i = 0; i < 240; i++) {
       const sp = Math.hypot(s.vx, s.vy);
-      if (sp < 0.08 || s.y > WORLD.length) break;
-      const dec = Math.min(sp, 1.55 * FIXED);
+      if (sp < 0.15 || s.y > WORLD.length) break;
+      const low = clamp((1.6 - sp) / 1.6, 0, 1);
+      const fr = 1.55 * (1 + 1.4 * low);
+      const dec = Math.min(sp, fr * FIXED);
       s.vx -= (s.vx / sp) * dec;
       s.vy -= (s.vy / sp) * dec;
       const sp2 = Math.hypot(s.vx, s.vy);
       if (sp2 > 0.15 && s.spin !== 0) {
-        const curl = s.spin * 0.14 * (sp2 / 8);
+        const curl = s.spin * CURL_ACCEL * (0.6 + 0.4 * (sp2 / 8));
         const nx = s.vx / sp2;
         const ny = s.vy / sp2;
         s.vx += ny * curl * FIXED;
@@ -1477,6 +1915,47 @@
     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
     ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTowerMonster() {
+    const t = game.tower;
+    const p = project(0, 33.2);
+    const r = Math.max(10, 0.5 * p.ppm);
+    ctx.save();
+    const g = ctx.createRadialGradient(p.sx, p.sy, r * 0.2, p.sx, p.sy, r * 1.8);
+    g.addColorStop(0, 'rgba(95,227,255,0.22)');
+    g.addColorStop(1, 'rgba(95,227,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(p.sx, p.sy, r * 1.8, 0, TAU);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(p.sx, p.sy, r, 0, TAU);
+    ctx.fillStyle = '#10233b';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(95,227,255,0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#5fe3ff';
+    ctx.beginPath();
+    ctx.arc(p.sx - r * 0.35, p.sy - r * 0.1, Math.max(1.5, r * 0.12), 0, TAU);
+    ctx.arc(p.sx + r * 0.35, p.sy - r * 0.1, Math.max(1.5, r * 0.12), 0, TAU);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(4,12,24,0.82)';
+    roundRect(ctx, p.sx - 36, p.sy - r - 28, 72, 18, 9);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(95,227,255,0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#ffd34d';
+    ctx.font = '700 10px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('DEF ' + fmt(t.def), p.sx, p.sy - r - 19);
     ctx.restore();
   }
 
@@ -1700,7 +2179,7 @@
     const p = project(stone.x, stone.y);
     const r = Math.max(4, stone.r * p.ppm);
 
-    if (game.aim.dragging && game.aim.power > 0.02) {
+    if (game.aim.charging && game.aim.power > 0.02) {
       const pts = ghostPath(game.aim.power, game.aim.angle);
       if (pts.length > 1) {
         const n = pts.length;
@@ -1750,31 +2229,31 @@
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      ctx.fillStyle = 'rgba(234,247,255,0.9)';
+      ctx.fillStyle = game.aim.power >= 0.99 ? '#ffd34d' : 'rgba(234,247,255,0.9)';
       ctx.font = '700 11px "PingFang SC","Microsoft YaHei",sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(Math.round(game.aim.power * 100) + '%', p.sx, p.sy + r + 24);
+      ctx.fillText(game.aim.power >= 0.99 ? 'MAX' : Math.round(game.aim.power * 100) + '%', p.sx, p.sy + r + 24);
       ctx.restore();
     } else {
-      // idle hint arrow
+      // idle hint arrow (按住蓄力)
       const a = 0.5 + Math.sin(game.time * 3) * 0.2;
       ctx.save();
       ctx.globalAlpha = a;
       ctx.strokeStyle = '#5fe3ff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(p.sx, p.sy + r + 12);
-      ctx.lineTo(p.sx, p.sy + r + 32);
+      ctx.moveTo(p.sx, p.sy - r - 12);
+      ctx.lineTo(p.sx, p.sy - r - 32);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(p.sx - 5, p.sy + r + 26);
-      ctx.lineTo(p.sx, p.sy + r + 34);
-      ctx.lineTo(p.sx + 5, p.sy + r + 26);
+      ctx.moveTo(p.sx - 5, p.sy - r - 26);
+      ctx.lineTo(p.sx, p.sy - r - 34);
+      ctx.lineTo(p.sx + 5, p.sy - r - 26);
       ctx.stroke();
       ctx.fillStyle = 'rgba(200,240,255,0.8)';
       ctx.font = '600 10px "PingFang SC","Microsoft YaHei",sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('拖拽', p.sx, p.sy + r + 50);
+      ctx.fillText('按住蓄力', p.sx, p.sy - r - 50);
       ctx.restore();
     }
   }
@@ -1854,6 +2333,7 @@
     }
     drawTrack();
     drawHouse();
+    if (game.mode === 'tower') drawTowerMonster();
     drawGates();
     drawPins();
     drawStones();
@@ -1874,36 +2354,85 @@
   // HUD
   // =========================================================================
   function updateHUD() {
-    game.displayScore += (game.score - game.displayScore) * 0.18;
-    scoreEl.textContent = fmt(game.displayScore);
     multEl.textContent = '×' + totalMult().toFixed(1);
     comboEl.textContent = '连击 ' + game.combo;
     chainEl.textContent = game.gateChain > 0 ? '门链 x' + game.gateChain : '门链 —';
 
-    if (game.score >= THREE_STAR_SCORE) {
-      targetLabelEl.textContent = '三星达成 ' + fmt(THREE_STAR_SCORE);
-    } else if (game.score >= game.targetScore) {
-      targetLabelEl.textContent = '二星达成 · 冲 ' + fmt(THREE_STAR_SCORE);
-    } else {
-      targetLabelEl.textContent = '目标 ' + fmt(game.targetScore);
-    }
-    const targetPct = Math.min(100, (game.score / game.targetScore) * 100);
-    targetBarEl.style.width = targetPct.toFixed(1) + '%';
-    targetBarEl.style.background =
-      game.score >= game.targetScore
-        ? 'linear-gradient(90deg, #ffd34d, #ffb020)'
-        : 'linear-gradient(90deg, #5fe3ff, #ffd34d)';
-
     const idx = Math.min(game.throwIndex + 1, game.throwsTotal);
     throwEl.textContent = '第 ' + idx + '/' + game.throwsTotal + ' 壶';
-    bestEl.textContent = '最高 ' + fmt(game.best);
+
+    if (game.mode === 'tower') {
+      const t = game.tower;
+      const liveDamage =
+        t.floorDamage +
+        Math.max(0, game.score - game.throwStartScore) * (1 + towerAtkBonus());
+      scoreEl.textContent = fmt(liveDamage);
+      targetLabelEl.textContent = '第 ' + t.floor + ' 层 · 防御 ' + fmt(t.def);
+      const pct = Math.min(100, (liveDamage / t.def) * 100);
+      targetBarEl.style.width = pct.toFixed(1) + '%';
+      targetBarEl.style.background =
+        liveDamage >= t.def
+          ? 'linear-gradient(90deg, #ffd34d, #ffb020)'
+          : 'linear-gradient(90deg, #5fe3ff, #ffd34d)';
+      bestEl.textContent =
+        '❤'.repeat(Math.max(0, t.hearts)) +
+        '♡'.repeat(Math.max(0, 5 - t.hearts)) +
+        ' · 攻击 +' +
+        Math.round(towerAtkBonus() * 100) +
+        '%';
+    } else {
+      game.displayScore += (game.score - game.displayScore) * 0.18;
+      scoreEl.textContent = fmt(game.displayScore);
+      if (game.score >= THREE_STAR_SCORE) {
+        targetLabelEl.textContent = '三星达成 ' + fmt(THREE_STAR_SCORE);
+      } else if (game.score >= game.targetScore) {
+        targetLabelEl.textContent = '二星达成 · 冲 ' + fmt(THREE_STAR_SCORE);
+      } else {
+        targetLabelEl.textContent = '目标 ' + fmt(game.targetScore);
+      }
+      const targetPct = Math.min(100, (game.score / game.targetScore) * 100);
+      targetBarEl.style.width = targetPct.toFixed(1) + '%';
+      targetBarEl.style.background =
+        game.score >= game.targetScore
+          ? 'linear-gradient(90deg, #ffd34d, #ffb020)'
+          : 'linear-gradient(90deg, #5fe3ff, #ffd34d)';
+      bestEl.textContent = '最高 ' + fmt(game.best);
+    }
+
     staminaEl.style.width = Math.max(0, game.stamina * 100).toFixed(0) + '%';
     staminaWrap.style.opacity = game.phase === 'slide' ? '1' : '0.35';
 
-    if (game.phase === 'slide') hintEl.textContent = '按住屏幕擦冰';
-    else if (game.phase === 'aim') hintEl.textContent = '向下拖拽，松手投掷';
-    else if (game.phase === 'between') hintEl.textContent = '准备下一壶…';
-    else hintEl.textContent = '';
+    if (game.phase === 'aim') {
+      const pct = Math.max(0, Math.min(1, game.aim.power)) * 100;
+      staminaEl.style.width = pct.toFixed(1) + '%';
+      staminaEl.style.background =
+        game.aim.power >= 0.99
+          ? 'linear-gradient(90deg, #ffd34d, #ff8a00)'
+          : 'linear-gradient(90deg, #5fe3ff, #ffd34d)';
+      staminaWrap.style.opacity = '1';
+    } else if (game.phase === 'slide') {
+      staminaEl.style.background = 'linear-gradient(90deg, #5fe3ff, #39e58c)';
+    } else {
+      staminaEl.style.width = '0%';
+      staminaWrap.style.opacity = '0.25';
+    }
+
+    if (game.phase === 'slide') {
+      hintEl.textContent = '按住屏幕擦冰';
+    } else if (game.phase === 'aim') {
+      if (game.aim.charging) {
+        hintEl.textContent =
+          game.aim.power >= 0.99
+            ? 'MAX · 松手投掷'
+            : '力度 ' + Math.round(game.aim.power * 100) + '% · 松手投掷';
+      } else {
+        hintEl.textContent = '按住蓄力，左右拖动瞄准';
+      }
+    } else if (game.phase === 'between') {
+      hintEl.textContent = '点击继续';
+    } else {
+      hintEl.textContent = '';
+    }
   }
 
   // =========================================================================
@@ -1973,6 +2502,8 @@
 
   resize();
   game.best = loadBest();
+  game.spin = loadSpin();
+  setSpinUI();
   showMenu();
   updateHUD();
   requestAnimationFrame(frame);
@@ -2016,7 +2547,13 @@
         totalPins: game.totalPins,
         combo: game.combo,
         mult: totalMult(),
-        gateMult: game.gateMult
+        gateMult: game.gateMult,
+        mode: game.mode,
+        floor: game.tower.floor,
+        def: game.tower.def,
+        damage: Math.round(game.tower.floorDamage),
+        hearts: game.tower.hearts,
+        atk: Math.round(towerAtkBonus() * 100)
       };
     },
     showResult

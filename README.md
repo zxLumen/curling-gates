@@ -7,9 +7,11 @@
 - 形态：HTML5 Canvas 单页原型（无依赖、无需构建）
 - 目标平台：抖音小游戏
 - 最终引擎：**Cocos Creator 3.8.7+**（原型只用于验证手感和数值，见 [`docs/ENGINE_DECISION.md`](docs/ENGINE_DECISION.md)）
-- 当前版本：v0.3 可玩原型（已通过浏览器 smoke test，见 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md)）
+- 当前版本：v0.4 可玩原型（爽快模式 + 爬塔模式，已通过浏览器 smoke test，见 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md)）
 
-![瞄准界面](docs/screenshots/aim.png)
+![模式选择](docs/screenshots/menu-modes.png)
+
+![满力蓄力](docs/screenshots/charge-max.png)
 
 ## 三种试玩方式
 
@@ -50,22 +52,27 @@ dist/curling-gates.html
 
 | 操作 | 方式 |
 |---|---|
-| 瞄准 / 力度 | 在画面上按住并向下拖拽，拖得越远力度越大；松手投掷 |
-| 方向 | 拖拽方向的反方向即投掷方向 |
-| 旋转 | 底部「左旋 / 直 / 右旋」按钮 |
+| 蓄力 | 在画面上按住，约 1.05 秒到满力；满力显示 MAX |
+| 瞄准 | 按住时左右拖动，调整角度 |
+| 投掷 | 松手投掷；力度低于 18% 松手会取消 |
+| 旋转 | 底部「左旋 / 直 / 右旋」按钮；**选择会记住**，新球/重开/刷新后保持 |
 | 擦冰 | 滑行时按住画面（或空格），消耗体力降低摩擦、减小弧线 |
-| 重开 | `R` |
+| 重开 | 右上角「↻ 重开」或 `R`，随时重置本局 |
 | 静音 | 右上角按钮或 `M` |
 
-## 当前实现（v0.3）
+## 当前实现（v0.4）
 
+- **两种模式**：爽快模式（3 壶冲 6,000 / 10,000）、爬塔模式（逐层打防御）
+- **按住蓄力**：约 1.05 秒满力，左右拖动瞄准，松手投掷；不再受屏幕边缘限制
+- **旋弧加大**：满旋横向约 2.2~2.8m；低速保留 60% 旋力
+- **收尾加速**：低速摩擦增强，最后 0.5 秒左右停稳；球间等待 1 秒，点击可跳过
 - 3 壶一局，3 排门，**30 个钉子**
 - 8 种门：变大、分裂、加速、倍率、磁铁、穿透、变小+倍率、粘滞
 - **钉子连锁**：撞中一个钉子后，最多触发两代连锁，制造“一壶清一片”的反馈
-- **滑行加速**：滑动时间 ×1.55，单壶约 3.5~4.5 秒，减少等待感
 - **门链**：连续命中门叠倍率，MISS 会断链；鼓励瞄准而不是随便投
 - **目标与星级**：目标 6,000；3,000 / 6,000 / 10,000 对应 1 / 2 / 3 星
 - **爽感反馈**：速度线、命中停顿、慢动作、大爆发（15 钉）、狂潮（25 钉）、连击音阶、震动
+- **爬塔模式**：每层怪物防御，3 壶伤害；层间合并石头、3 选 1 强化，3 心失败重试
 - 物理：固定 60Hz、摩擦、旋转弧线、擦冰、壶-壶碰撞、壶-钉碰撞、高速细分步进
 - 计分：钉子分 + 大本营分 + 连击倍率 + 门链倍率 + 清屏奖励
 - 结算：星级、最高分、最高倍率、最高连击、最高门链、每壶得分、“差 X 分”
@@ -77,9 +84,11 @@ dist/curling-gates.html
 
 - [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)：整体玩法设计（增益门 + 滚雪球）
 - [`docs/PROTOTYPE_SPEC.md`](docs/PROTOTYPE_SPEC.md)：可执行原型规格（物理参数、门数值、关卡布局、验收标准）
+- [`docs/TOWER_MODE.md`](docs/TOWER_MODE.md)：爬塔模式调研与设计（防御/合并/强化）
 - [`docs/ENGINE_DECISION.md`](docs/ENGINE_DECISION.md)：引擎选型与 Cocos 迁移清单
 - [`docs/NAMING.md`](docs/NAMING.md)：抖音小游戏命名规范、候选名与查重清单
 - [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md)：最近一次浏览器实测记录
+- [`ROLLBACK.md`](ROLLBACK.md)：回退到 v0.3 基线的说明
 
 ## 文件结构
 
@@ -95,18 +104,27 @@ curling-gates/
 ├─ package.json         npm scripts，无依赖
 ├─ dist/                单文件试玩版（生成）
 ├─ README.md
+├─ ROLLBACK.md          回退到 v0.3 基线
 └─ docs/
    ├─ GAME_DESIGN.md
    ├─ PROTOTYPE_SPEC.md
+   ├─ TOWER_MODE.md
    ├─ ENGINE_DECISION.md
    ├─ NAMING.md
    ├─ TEST_REPORT.md
    └─ screenshots/
+      ├─ menu-modes.png
+      ├─ charge.png
+      ├─ charge-max.png
       ├─ aim.png
       ├─ aim-ghost.png
       ├─ slide.png
       ├─ sweep.png
-      └─ result.png
+      ├─ result.png
+      ├─ tower-aim.png
+      ├─ tower-clear.png
+      ├─ tower-floor2.png
+      └─ tower-fail.png
 ```
 
 ## 已知限制
@@ -119,8 +137,8 @@ curling-gates/
 
 ## 下一步
 
-1. 试玩并调手感（力度曲线、摩擦、弧线、擦冰、连锁范围）
-2. 确认「门」的数值与组合是否够爽
+1. 试玩并调手感（蓄力时间、旋弧、收尾、擦冰）
+2. 爬塔模式数值：1~5 层通过率、合并/强化节奏
 3. 做 Cocos 3.8.7 空工程 spike，实测抖音主包大小
 4. 迁移 Cocos，接抖音 SDK
-5. 补 15~20 关、每日残局、分享录屏、激励视频
+5. 每日挑战 / 排行榜 / 分享录屏
