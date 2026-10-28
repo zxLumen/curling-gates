@@ -92,6 +92,7 @@ dist/curling-gates.html
 ## 文档
 
 - [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md)：10 关闯关设计（目标/布局/难度曲线/通关规则）
+- [`docs/LEVEL_TOOLING.md`](docs/LEVEL_TOOLING.md)：关卡设计工具调研（自研编辑器/模拟器/Tiled/LDtk 对比）
 - [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)：整体玩法设计（增益门 + 滚雪球）
 - [`docs/PROTOTYPE_SPEC.md`](docs/PROTOTYPE_SPEC.md)：可执行原型规格（物理参数、门数值、关卡布局、验收标准）
 - [`docs/TOWER_MODE.md`](docs/TOWER_MODE.md)：爬塔模式调研与设计（防御/三选一/冰球）
@@ -117,6 +118,7 @@ curling-gates/
 ├─ ROLLBACK.md          回退到 v0.3 基线
 └─ docs/
    ├─ CAMPAIGN.md
+   ├─ LEVEL_TOOLING.md
    ├─ GAME_DESIGN.md
    ├─ PROTOTYPE_SPEC.md
    ├─ TOWER_MODE.md
