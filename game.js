@@ -15,8 +15,6 @@
   const throwEl = document.getElementById('throwLabel');
   const bestEl = document.getElementById('bestLabel');
   const toastEl = document.getElementById('toast');
-  const staminaEl = document.getElementById('stamina');
-  const staminaWrap = document.getElementById('staminaWrap');
   const hintEl = document.getElementById('hint');
   const overlayEl = document.getElementById('overlay');
   const startBtn = document.getElementById('startBtn');
@@ -60,10 +58,8 @@
   const COMBO_MULT_MAX = 6;
   const TOTAL_MULT_MAX = 20;
   const SLIDE_TIME_SCALE = 1.15;
-  const CURL_ACCEL = 0.26;
-  const CHARGE_TIME = 1.05;
-  const CHARGE_MIN = 0.08;
-  const AIM_DRAG_PX = 110;
+  const CURL_ACCEL = 0.90;
+  const FULL_SPEED = 9.2;
   const TARGET_SCORE = 6000;
   const THREE_STAR_SCORE = 10000;
   const BEST_KEY = 'curling-gates-best-v1';
@@ -369,19 +365,12 @@
     snow: [],
     aim: {
       charging: false,
-      chargeTime: 0,
-      chargeStage: 0,
-      maxed: false,
       startX: 0,
       curX: 0,
       curY: 0,
-      power: 0,
       angle: 0
     },
     spin: 0,
-    sweeping: false,
-    stamina: 1,
-    sweepSfxTimer: 0,
     settleTimer: 0,
     betweenTimer: 0,
     shake: 0,
@@ -496,7 +485,7 @@
     const debuffChance = level <= 1 ? 0 : Math.min(0.45, 0.18 + (level - 1) * 0.08);
 
     // Random vertical positions, min gap 4.2m
-    const y1 = 8.2 + rng() * 2.2;
+    const y1 = 11.4 + rng() * 2.2;
     const y2 = Math.min(18.5, y1 + 4.2 + rng() * 2.4);
     const y3 = Math.min(25.0, y2 + 4.2 + rng() * 2.4);
 
@@ -845,15 +834,8 @@
     game.hitStop = 0;
     game.cleared = false;
     game.aim.charging = false;
-    game.aim.chargeTime = 0;
-    game.aim.chargeStage = 0;
-    game.aim.maxed = false;
-    game.aim.power = 0;
     game.aim.angle = 0;
     setSpinUI();
-    game.sweeping = false;
-    game.stamina = 1;
-    game.sweepSfxTimer = 0;
     game.settleTimer = 0.3;
     game.betweenTimer = 0;
     game.particles = [];
@@ -866,9 +848,7 @@
   function doThrow() {
     const s = game.stones[0];
     if (!s || !s.alive) return;
-    const power = clamp(game.aim.power, 0, 1);
-    if (power < CHARGE_MIN) return;
-    const speed = 4.5 + power * 7.0;
+    const speed = FULL_SPEED;
     s.vx = Math.sin(game.aim.angle) * speed;
     s.vy = Math.cos(game.aim.angle) * speed;
     s.spin =
@@ -888,9 +868,7 @@
     if (s.ballId === 'bomb') s.ballBomb = true;
     game.phase = 'slide';
     game.aim.charging = false;
-    game.aim.power = 0;
     game.settleTimer = 0.3;
-    game.sweeping = false;
     renderBallBar();
     AudioFX.throwStone();
   }
@@ -910,7 +888,6 @@
     game.phase = 'between';
     game.settleTimer = 0;
     game.betweenTimer = 1.0;
-    game.sweeping = false;
     renderBallBar();
 
     if (game.mode === 'tower') {
@@ -1354,18 +1331,12 @@
       if (game.aim.charging) return;
       const p = getPointerPos(e);
       game.aim.charging = true;
-      game.aim.chargeTime = 0;
-      game.aim.chargeStage = 0;
-      game.aim.maxed = false;
       game.aim.startX = p.x;
       game.aim.curX = p.x;
       game.aim.curY = p.y;
-      game.aim.power = 0;
       game.aim.angle = 0;
       updateAimAngle();
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    } else if (game.phase === 'slide') {
-      game.sweeping = true;
     }
   });
 
@@ -1381,23 +1352,13 @@
   function endPointer() {
     if (game.phase === 'aim' && game.aim.charging) {
       game.aim.charging = false;
-      if (game.aim.chargeTime >= 0.08 && game.aim.power >= CHARGE_MIN) {
-        doThrow();
-      } else {
-        game.aim.power = 0;
-        showToast('按住蓄力再松手', 700);
-      }
-    }
-    if (game.phase === 'slide') {
-      game.sweeping = false;
+      doThrow();
     }
   }
 
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', () => {
     game.aim.charging = false;
-    game.aim.power = 0;
-    game.sweeping = false;
   });
 
   document.querySelectorAll('.spin-btn').forEach((btn) => {
@@ -1496,7 +1457,6 @@
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       e.preventDefault();
-      if (game.phase === 'slide') game.sweeping = true;
     } else if (e.code === 'KeyR') {
       restartRun();
     } else if (e.code === 'KeyA') {
@@ -1511,7 +1471,7 @@
   });
 
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space') game.sweeping = false;
+    /* space no longer used */
   });
 
   // =========================================================================
@@ -1526,11 +1486,9 @@
       return;
     }
 
-    const sweep = game.sweeping && game.stamina > 0;
     const sizeFactor = clamp(1.15 - 0.15 * (s.r / R0), 0.7, 1.15);
     const lowSpeed = clamp((1.6 - speed) / 1.6, 0, 1);
     let fr = s.friction * sizeFactor * (1 + 1.4 * lowSpeed);
-    if (sweep) fr *= 0.75;
 
     const dec = Math.min(speed, fr * dt);
     s.vx -= (s.vx / speed) * dec;
@@ -1538,7 +1496,7 @@
 
     const sp = Math.hypot(s.vx, s.vy);
     if (sp > 0.15 && s.spin !== 0) {
-      const curl = s.spin * CURL_ACCEL * (0.6 + 0.4 * (sp / 8)) * (sweep ? 0.7 : 1);
+      const curl = s.spin * CURL_ACCEL * (0.6 + 0.4 * (sp / 8));
       const nx = s.vx / sp;
       const ny = s.vy / sp;
       s.vx += ny * curl * dt;
@@ -1657,40 +1615,59 @@
   }
 
   function checkGateCrossing(s, prevY) {
+    if (!s.gateRows) s.gateRows = new Set();
+    const sp = project(s.x, s.y);
+    const prevSp = project(s.x, prevY);
+
     for (const row of game.gates) {
-      if (!(prevY < row.y && s.y >= row.y)) continue;
+      if (row.gates.length === 0) continue;
       const matches = [];
+      let maxR = 0;
+      let rowP = null;
       for (const g of row.gates) {
-        if (g.used) continue;
         const gx = gateX(g);
-        if (Math.abs(s.x - gx) <= g.w / 2) {
+        const gp = project(gx, row.y);
+        const R = Math.max(6, (g.w / 2) * gp.ppm);
+        rowP = gp;
+        maxR = Math.max(maxR, R);
+        if (g.used) continue;
+        const dx = sp.sx - gp.sx;
+        const dy = sp.sy - gp.sy;
+        if (dx * dx + dy * dy <= R * R) {
           matches.push({ g, gx });
         }
       }
 
-      if (matches.length === 0) {
-        const hadChain = game.gateChain > 0;
-        game.gateChain = 0;
-        addPopup(
-          s.x,
-          row.y + 1.2,
-          hadChain ? 'MISS · 门链断' : 'MISS',
-          'rgba(255,93,108,0.85)',
-          0.55
-        );
-        continue;
+      if (matches.length > 0) {
+        s.gateRows.add(row);
+        // 同时吃到多个门 → 全部生效；分裂门最后，子球继承前面的增益。
+        matches.sort((a, b) => {
+          const sa = a.g.type === 'split' ? 1 : 0;
+          const sb = b.g.type === 'split' ? 1 : 0;
+          return sa - sb;
+        });
+        for (const hit of matches) {
+          hit.g.used = true;
+          applyGate(s, hit.g, row, hit.gx);
+          if (!s.alive) break;
+        }
       }
 
-      // 如果同时吃到多个门，全部生效；分裂门放最后，让子球继承前面的增益。
-      matches.sort((a, b) => {
-        const sa = a.g.type === 'split' ? 1 : 0;
-        const sb = b.g.type === 'split' ? 1 : 0;
-        return sa - sb;
-      });
-      for (const hit of matches) {
-        hit.g.used = true;
-        applyGate(s, hit.g, row, hit.gx);
-        if (!s.alive) break;
+      // 越过整排圆圈的下沿仍没吃到 → MISS，门链断。
+      if (!s.gateRows.has(row) && rowP) {
+        const passY = rowP.sy + maxR;
+        if (prevSp.sy < passY && sp.sy >= passY) {
+          const hadChain = game.gateChain > 0;
+          game.gateChain = 0;
+          addPopup(
+            s.x,
+            row.y + 1.2,
+            hadChain ? 'MISS · 门链断' : 'MISS',
+            'rgba(255,93,108,0.85)',
+            0.55
+          );
+          s.gateRows.add(row);
+        }
       }
     }
   }
@@ -1699,7 +1676,10 @@
     const def = GATE_DEFS[g.type];
     const color = GATE_COLORS[def.color];
     const x = gx == null ? g.x : gx;
-    const perfect = Math.abs(s.x - x) <= g.w * 0.15;
+    const gp = project(x, row.y);
+    const sp = project(s.x, s.y);
+    const R = Math.max(6, (g.w / 2) * gp.ppm);
+    const perfect = Math.hypot(sp.sx - gp.sx, sp.sy - gp.sy) <= R * 0.3;
 
     game.gateChain += 1;
     game.maxChain = Math.max(game.maxChain, game.gateChain);
@@ -1993,37 +1973,6 @@
   // =========================================================================
   function update(dt) {
     game.time += dt;
-
-    if (game.phase === 'aim' && game.aim.charging) {
-      game.aim.chargeTime += dt;
-      const period = CHARGE_TIME * 2;
-      const phase = game.aim.chargeTime % period;
-      const raw = phase <= CHARGE_TIME ? phase / CHARGE_TIME : 2 - phase / CHARGE_TIME;
-      game.aim.power = clamp(raw, 0, 1);
-      const stage = Math.min(4, Math.floor(game.aim.power * 4));
-      if (stage !== game.aim.chargeStage) {
-        game.aim.chargeStage = stage;
-        AudioFX.charge(stage);
-        haptic(stage >= 4 ? 12 : 4);
-      }
-      if (game.aim.power >= 0.99 && !game.aim.maxed) {
-        game.aim.maxed = true;
-      }
-      if (game.aim.power < 0.9) {
-        game.aim.maxed = false;
-      }
-    }
-
-    if (game.phase === 'slide' && game.sweeping && game.stamina > 0) {
-      game.stamina = Math.max(0, game.stamina - dt / 2.2);
-      game.sweepSfxTimer -= dt;
-      if (game.sweepSfxTimer <= 0) {
-        AudioFX.sweep();
-        game.sweepSfxTimer = 0.18;
-      }
-    } else {
-      game.stamina = Math.min(1, game.stamina + dt / 1.3);
-    }
 
     if (game.phase === 'slide' || game.phase === 'between') {
       const slideScale = game.phase === 'slide' ? SLIDE_TIME_SCALE : 1;
@@ -2342,23 +2291,20 @@
 
   function drawGates() {
     for (const row of game.gates) {
-      // subtle row line
-      lineAcross(row.y, 'rgba(120,210,255,0.18)', 1, [4, 8]);
-
       for (const g of row.gates) {
         const def = GATE_DEFS[g.type];
         const color = GATE_COLORS[def.color];
         const gx = gateX(g);
         const p = project(gx, row.y);
-        const half = (g.w / 2) * p.ppm;
-        const bandH = Math.max(18, 0.7 * p.ppm);
+        const R = Math.max(6, (g.w / 2) * p.ppm);
 
         ctx.save();
         ctx.globalAlpha = g.used ? 0.22 : 1;
 
-        // Actual trigger zone: a horizontal band whose width is exactly g.w.
-        roundRect(ctx, p.sx - half, p.sy - bandH / 2, half * 2, bandH, bandH / 2);
-        ctx.fillStyle = color + '30';
+        // 圆形触发区：屏幕上的圆，直径 = 设计宽度；整圆内部都可触发。
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, R, 0, TAU);
+        ctx.fillStyle = color + '26';
         ctx.fill();
         ctx.strokeStyle = color + '55';
         ctx.lineWidth = 6;
@@ -2367,49 +2313,36 @@
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Perfect zone: exactly the center 30% of the trigger width.
-        const perfectW = g.w * 0.3 * p.ppm;
-        roundRect(
-          ctx,
-          p.sx - perfectW / 2,
-          p.sy - bandH / 2 + 3,
-          perfectW,
-          bandH - 6,
-          Math.max(2, (bandH - 6) / 2)
-        );
-        ctx.fillStyle = 'rgba(255,211,77,0.22)';
+        // PERFECT 区：半径 30%，和判定完全一致。
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, R * 0.3, 0, TAU);
+        ctx.fillStyle = 'rgba(255,211,77,0.20)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(255,211,77,0.75)';
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // short edge posts
-        ctx.strokeStyle = color + 'aa';
-        ctx.lineWidth = 1.5;
+        // 中心点
         ctx.beginPath();
-        ctx.moveTo(p.sx - half, p.sy - bandH / 2 - 4);
-        ctx.lineTo(p.sx - half, p.sy + bandH / 2 + 4);
-        ctx.moveTo(p.sx + half, p.sy - bandH / 2 - 4);
-        ctx.lineTo(p.sx + half, p.sy + bandH / 2 + 4);
-        ctx.stroke();
+        ctx.arc(p.sx, p.sy, 2.2, 0, TAU);
+        ctx.fillStyle = color;
+        ctx.fill();
 
-        // icon above the band
-        const iconSize = clamp(19 * p.scale + 5, 11, 21);
+        const iconSize = clamp(R * 0.45, 10, 20);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffffff';
         ctx.font = '800 ' + iconSize + 'px "PingFang SC","Microsoft YaHei",sans-serif';
-        ctx.fillText(def.icon, p.sx, p.sy - bandH / 2 - iconSize * 0.7);
+        ctx.fillText(def.icon, p.sx, p.sy - R * 0.46);
 
-        // value below the band
         ctx.fillStyle = color;
-        ctx.font = '700 ' + clamp(9 * p.scale + 5, 8, 12) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
-        ctx.fillText(def.value, p.sx, p.sy + bandH / 2 + 10);
+        ctx.font = '700 ' + clamp(R * 0.26, 8, 12) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.fillText(def.value, p.sx, p.sy + R * 0.46);
 
         if (g.move) {
           ctx.fillStyle = color + 'cc';
-          ctx.font = '700 9px "PingFang SC","Microsoft YaHei",sans-serif';
-          ctx.fillText('↔', p.sx, p.sy + bandH / 2 + 22);
+          ctx.font = '700 ' + clamp(R * 0.2, 7, 9) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+          ctx.fillText('↔', p.sx, p.sy + R * 0.72);
         }
 
         if (g.used) {
@@ -2576,84 +2509,6 @@
     }
   }
 
-  function drawPowerBar(p, r) {
-    const barW = 14;
-    const barH = 74;
-    const side = p.sx > W * 0.5 ? -1 : 1;
-    const x = p.sx + side * (r + 100);
-    const bottom = p.sy + 30;
-    const top = bottom - barH;
-    const power = game.aim.power;
-
-    ctx.save();
-
-    // outer capsule
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = 'rgba(4,14,28,0.62)';
-    roundRect(ctx, x - barW / 2 - 3, top - 5, barW + 6, barH + 10, (barW + 6) / 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(140,210,255,0.28)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // inner track
-    ctx.save();
-    roundRect(ctx, x - barW / 2, top, barW, barH, barW / 2);
-    ctx.clip();
-    ctx.fillStyle = 'rgba(8,24,45,0.8)';
-    ctx.fillRect(x - barW / 2, top, barW, barH);
-
-    const fillH = barH * power;
-    if (fillH > 0.5) {
-      const g = ctx.createLinearGradient(0, bottom, 0, top);
-      g.addColorStop(0, '#3b82f6');
-      g.addColorStop(0.35, '#22d3ee');
-      g.addColorStop(0.55, '#22c55e');
-      g.addColorStop(0.75, '#facc15');
-      g.addColorStop(1, '#ef4444');
-      ctx.fillStyle = g;
-      ctx.fillRect(x - barW / 2, bottom - fillH, barW, fillH);
-    }
-
-    // subtle tick marks
-    ctx.strokeStyle = 'rgba(4,14,28,0.30)';
-    ctx.lineWidth = 1;
-    for (let i = 1; i < 10; i++) {
-      const y = bottom - (barH * i) / 10;
-      ctx.beginPath();
-      ctx.moveTo(x - barW / 2, y);
-      ctx.lineTo(x + barW / 2, y);
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    // knob
-    const knobY = bottom - fillH;
-    if (power >= 0.99) {
-      ctx.shadowColor = '#ef4444';
-      ctx.shadowBlur = 14;
-    }
-    ctx.beginPath();
-    ctx.arc(x, knobY, 7, 0, TAU);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = power >= 0.99 ? '#ef4444' : 'rgba(95,227,255,0.85)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.textAlign = side > 0 ? 'left' : 'right';
-    ctx.textBaseline = 'middle';
-    ctx.font = '800 10px "PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.fillStyle = power >= 0.99 ? '#ff4d5e' : 'rgba(234,247,255,0.9)';
-    if (power > 0.01) {
-      ctx.fillText(power >= 0.99 ? 'MAX' : Math.round(power * 100) + '%', x + side * 16, knobY);
-    }
-    ctx.restore();
-  }
-
   function drawAimLine(p, r) {
     if (!game.aim.charging) return;
     const tx = game.aim.curX;
@@ -2707,8 +2562,8 @@
     const p = project(stone.x, stone.y);
     const r = Math.max(4, stone.r * p.ppm);
 
-    if (game.aim.charging && game.aim.power > 0.02) {
-      const pts = ghostPath(game.aim.power, game.aim.angle);
+    if (game.aim.charging) {
+      const pts = ghostPath(1, game.aim.angle);
       if (pts.length > 1) {
         const n = pts.length;
         const solid = Math.max(2, Math.floor(n * 0.55));
@@ -2747,23 +2602,8 @@
         ctx.stroke();
         ctx.restore();
       }
-
-      // power ring
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(p.sx, p.sy, r + 9, -Math.PI / 2, -Math.PI / 2 + game.aim.power * TAU);
-      ctx.strokeStyle = game.aim.power > 0.7 ? '#ffd34d' : '#5fe3ff';
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      ctx.fillStyle = game.aim.power >= 0.99 ? '#ffd34d' : 'rgba(234,247,255,0.9)';
-      ctx.font = '700 11px "PingFang SC","Microsoft YaHei",sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(game.aim.power >= 0.99 ? 'MAX' : Math.round(game.aim.power * 100) + '%', p.sx, p.sy + r + 24);
-      ctx.restore();
     } else {
-      // idle hint arrow (按住蓄力)
+      // idle hint arrow
       const a = 0.5 + Math.sin(game.time * 3) * 0.2;
       ctx.save();
       ctx.globalAlpha = a;
@@ -2778,15 +2618,10 @@
       ctx.lineTo(p.sx, p.sy - r - 34);
       ctx.lineTo(p.sx + 5, p.sy - r - 26);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(200,240,255,0.8)';
-      ctx.font = '600 10px "PingFang SC","Microsoft YaHei",sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('按住蓄力', p.sx, p.sy - r - 50);
       ctx.restore();
     }
 
     drawAimLine(p, r);
-    drawPowerBar(p, r);
   }
 
   function drawParticles() {
@@ -2930,29 +2765,10 @@
       bestEl.textContent = '最高 ' + fmt(game.best);
     }
 
-    staminaEl.style.width = Math.max(0, game.stamina * 100).toFixed(0) + '%';
-    staminaWrap.style.opacity = game.phase === 'slide' ? '1' : '0.35';
-
     if (game.phase === 'slide') {
-      staminaEl.style.width = Math.max(0, game.stamina * 100).toFixed(0) + '%';
-      staminaEl.style.background = 'linear-gradient(90deg, #5fe3ff, #39e58c)';
-      staminaWrap.style.opacity = '1';
-    } else {
-      staminaEl.style.width = '0%';
-      staminaWrap.style.opacity = game.phase === 'aim' ? '0' : '0.25';
-    }
-
-    if (game.phase === 'slide') {
-      hintEl.textContent = '按住屏幕擦冰';
+      hintEl.textContent = '全力投掷中';
     } else if (game.phase === 'aim') {
-      if (game.aim.charging) {
-        hintEl.textContent =
-          game.aim.power >= 0.99
-            ? 'MAX · 松手投掷'
-            : '力度 ' + Math.round(game.aim.power * 100) + '% · 松手投掷';
-      } else {
-        hintEl.textContent = '按住蓄力，手指指向目标';
-      }
+      hintEl.textContent = game.aim.charging ? '松手投掷' : '按住瞄准，手指指向目标';
     } else if (game.phase === 'between') {
       hintEl.textContent = '点击继续';
     } else {
@@ -3037,9 +2853,8 @@
   window.__game = {
     get state() { return game; },
     startGame,
-    throwNow(power, angle, spin) {
+    throwNow(_power, angle, spin) {
       if (game.phase !== 'aim') startThrow();
-      game.aim.power = power == null ? 0.72 : power;
       game.aim.angle = angle || 0;
       game.spin = spin || 0;
       setSpinUI();

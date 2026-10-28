@@ -252,22 +252,7 @@ body {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
 }
 
-#staminaWrap {
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  overflow: hidden;
-  opacity: 0.35;
-  transition: opacity 0.2s ease;
-}
 
-#stamina {
-  height: 100%;
-  width: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #5fe3ff, #39e58c);
-  transition: width 0.08s linear;
-}
 
 #spinBar {
   display: flex;
