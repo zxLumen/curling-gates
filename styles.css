@@ -531,8 +531,16 @@ body {
 .ball-bar {
   display: flex;
   gap: 6px;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: none;
   pointer-events: auto;
+}
+
+.ball-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .ball-chip {
@@ -574,6 +582,11 @@ body {
 .ball-chip:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.ball-chip.used {
+  opacity: 0.32;
+  text-decoration: line-through;
 }
 
 .ball-grid {

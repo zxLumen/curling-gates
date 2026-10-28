@@ -539,8 +539,16 @@ body {
 .ball-bar {
   display: flex;
   gap: 6px;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: none;
   pointer-events: auto;
+}
+
+.ball-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .ball-chip {
@@ -582,6 +590,11 @@ body {
 .ball-chip:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.ball-chip.used {
+  opacity: 0.32;
+  text-decoration: line-through;
 }
 
 .ball-grid {
@@ -772,7 +785,7 @@ body {
       <h1 id="towerTitle">第 1 层突破</h1>
       <p id="towerSub" class="tagline">伤害 0 / 防御 0</p>
       <div id="towerBalls" class="ball-grid"></div>
-      <p id="towerTip" class="tower-tip">选择 1 个：新冰球 / 强化现有冰球 / 回心</p>
+      <p id="towerTip" class="tower-tip">选择 1 个：新冰球 / 强化现有冰球</p>
       <div id="towerAtk" class="tower-atk">攻击加成 +0%</div>
       <button id="towerNextBtn" class="primary">进入下一层</button>
       <button id="towerRetryBtn" class="primary hidden">重试本层</button>
@@ -853,7 +866,7 @@ body {
   const BEST_KEY = 'curling-gates-best-v1';
   const SPIN_KEY = 'curling-gates-spin-v1';
   const TOWER_BEST_KEY = 'curling-gates-tower-best-v1';
-  const TOWER_BASE_DEF = 800;
+  const TOWER_BASE_DEF = 300;
   const TOWER_DEF_GROWTH = 1.5;
   const QUICK_SEED = 20261028;
 
@@ -861,7 +874,11 @@ body {
     standard: { name: '标准球', color: '#ff6b4a', radius: 1.0, atk: 0.0, desc: '均衡，稳定得分' },
     giant: { name: '巨力球', color: '#ffd34d', radius: 1.3, atk: 0.05, desc: '更大更重，撞击更强' },
     curl: { name: '旋弧球', color: '#5fe3ff', radius: 0.95, atk: 0.1, desc: '旋弧 ×1.6，适合绕门' },
-    split: { name: '分裂球', color: '#39e58c', radius: 0.9, atk: 0.15, desc: '首次过门分裂成两颗' }
+    split: { name: '分裂球', color: '#39e58c', radius: 0.9, atk: 0.15, desc: '首次过门分裂成两颗' },
+    magnet: { name: '磁力球', color: '#8b5cf6', radius: 1.0, atk: 0.08, desc: '吸附附近钉子' },
+    pierce: { name: '穿透球', color: '#f59e0b', radius: 0.95, atk: 0.12, desc: '穿透前 3 个钉子' },
+    bounce: { name: '弹跳球', color: '#ec4899', radius: 1.0, atk: 0.06, desc: '撞墙反弹更强' },
+    bomb: { name: '爆裂球', color: '#ef4444', radius: 1.0, atk: 0.14, desc: '首次撞钉引发爆炸' }
   };
 
   const GATE_COLORS = {
@@ -1210,6 +1227,9 @@ body {
       ballLevel: o.ballLevel || 1,
       ballColor: o.ballColor || null,
       ballSplitUsed: false,
+      ballBomb: o.ballBomb || false,
+      ballBombUsed: false,
+      ballBounce: o.ballBounce || false,
       trail: []
     };
   }
@@ -1268,21 +1288,50 @@ body {
       }
       return a;
     };
-    const pickUnique = (pool, count) => shuffle(pool).slice(0, count);
     const scale = Math.max(0.82, 1.05 - (level - 1) * 0.04);
     const debuffChance = level <= 1 ? 0 : Math.min(0.45, 0.18 + (level - 1) * 0.08);
 
-    // Row 1: two wide growth gates, always easy to hit.
+    // Random vertical positions, min gap 4.2m
+    const y1 = 8.2 + rng() * 2.2;
+    const y2 = Math.min(18.5, y1 + 4.2 + rng() * 2.4);
+    const y3 = Math.min(25.0, y2 + 4.2 + rng() * 2.4);
+
+    // Row 1: two growth gates covering the center, so early shots are forgiving.
     const growth = shuffle(['sizeUp', 'split']);
     const row1 = {
-      y: 11,
+      y: y1,
       gates: [
-        { type: growth[0], x: -0.75, w: 1.45 + rng() * 0.12, used: false },
-        { type: growth[1], x: 0.75, w: 1.45 + rng() * 0.12, used: false }
+        {
+          type: growth[0],
+          x: -0.5 - rng() * 0.22,
+          w: 1.2 + rng() * 0.22,
+          used: false
+        },
+        {
+          type: growth[1],
+          x: 0.5 + rng() * 0.22,
+          w: 1.2 + rng() * 0.22,
+          used: false
+        }
       ]
     };
 
-    const makeRow = (y, count, buffs, debuffs, positions) => {
+    const makePositions = (count) => {
+      if (count === 1) return [(rng() - 0.5) * 1.6];
+      if (count === 2) {
+        return [
+          -1.18 + rng() * 0.5,
+          0.55 + rng() * 0.5
+        ];
+      }
+      return [
+        -1.3 + (rng() - 0.5) * 0.3,
+        (rng() - 0.5) * 0.45,
+        1.3 + (rng() - 0.5) * 0.3
+      ];
+    };
+
+    const makeRow = (y, count, buffs, debuffs) => {
       const chosen = [];
       const buffPool = shuffle(buffs);
       const debuffPool = shuffle(debuffs);
@@ -1294,6 +1343,7 @@ body {
       if (chosen.every((t) => debuffs.includes(t))) {
         chosen[0] = pick(buffs);
       }
+      const positions = makePositions(count);
       return {
         y,
         gates: chosen.map((type, i) => {
@@ -1301,31 +1351,52 @@ body {
           return {
             type,
             x: positions[i],
-            w: (isDebuff ? 0.58 + rng() * 0.08 : 0.88 + rng() * 0.18) * scale,
+            w: (isDebuff ? 0.58 + rng() * 0.08 : 0.82 + rng() * 0.22) * scale,
             used: false
           };
         })
       };
     };
 
-    const row2Count = level <= 1 ? 2 : rng() < 0.52 ? 2 : 3;
-    const row3Count = level <= 1 ? 2 : rng() < 0.45 ? 2 : 3;
+    const row2Count = level <= 1 ? 2 : rng() < 0.35 ? 1 : rng() < 0.55 ? 2 : 3;
+    const row3Count = level <= 1 ? 2 : rng() < 0.4 ? 1 : rng() < 0.6 ? 2 : 3;
     const row2 = makeRow(
-      17,
+      y2,
       row2Count,
       ['speedUp', 'mult', 'magnet', 'pierce'],
-      ['sticky'],
-      row2Count === 3 ? [-1.3, 0, 1.3] : [-0.85, 0.85]
+      ['sticky']
     );
     const row3 = makeRow(
-      23,
+      y3,
       row3Count,
       ['magnet', 'pierce', 'mult'],
-      ['shrink', 'sticky'],
-      row3Count === 3 ? [-1.3, 0, 1.3] : [-0.85, 0.85]
+      ['shrink', 'sticky']
     );
 
-    return [row1, row2, row3];
+    const rows = [row1, row2, row3];
+    if (level >= 2) {
+      for (const row of rows) {
+        for (const gate of row.gates) {
+          if (rng() < 0.35) {
+            gate.move = {
+              amp: 0.16 + rng() * 0.28,
+              speed: 0.7 + rng() * 0.9,
+              phase: rng() * TAU
+            };
+          }
+        }
+      }
+    }
+
+    return rows;
+  }
+
+  function gateX(gate) {
+    if (!gate.move) return gate.x;
+    return (
+      gate.x +
+      Math.sin(game.time * gate.move.speed + gate.move.phase) * gate.move.amp
+    );
   }
 
   // =========================================================================
@@ -1504,7 +1575,7 @@ body {
     t.runSeed = (Math.random() * 1e9) | 0;
     t.floorSeed = hashSeed(t.runSeed, 1);
     t.options = [];
-    t.balls = [{ id: 'standard', level: 1 }];
+    t.balls = [{ id: 'standard', level: 1, usedThisFloor: false }];
     t.selectedBall = 0;
     t.upgraded = false;
     t.chosenOption = -1;
@@ -1515,10 +1586,22 @@ body {
 
   function startThrow() {
     game.phase = 'aim';
-    game.throwsTotal = 3;
+    game.throwsTotal = game.mode === 'tower' ? Math.max(1, game.tower.balls.length) : 3;
     game.targetScore = game.mode === 'tower' ? game.tower.def : TARGET_SCORE;
     game.throwStartScore = game.score;
     game.throwMaxMult = 1;
+    if (game.mode === 'tower') {
+      const t = game.tower;
+      let idx = t.selectedBall;
+      if (!t.balls[idx] || t.balls[idx].usedThisFloor) {
+        idx = t.balls.findIndex((b) => !b.usedThisFloor);
+      }
+      if (idx < 0) {
+        resolveTowerFloor();
+        return;
+      }
+      t.selectedBall = idx;
+    }
     const selected = game.mode === 'tower' ? getSelectedBall() : null;
     const selectedType = selected ? ballType(selected) : null;
     game.stones = [
@@ -1573,6 +1656,17 @@ body {
       game.spin *
       (game.mode === 'tower' ? ballSpinMult(getSelectedBall()) : 1);
     s.active = true;
+    if (game.mode === 'tower') {
+      const b = getSelectedBall();
+      b.usedThisFloor = true;
+    }
+    if (s.ballId === 'magnet') {
+      s.magnetTimer = 4;
+      s.magnetRadius = 2.8;
+    }
+    if (s.ballId === 'pierce') s.pierce = 3;
+    if (s.ballId === 'bounce') s.ballBounce = true;
+    if (s.ballId === 'bomb') s.ballBomb = true;
     game.phase = 'slide';
     game.aim.charging = false;
     game.aim.power = 0;
@@ -1629,6 +1723,10 @@ body {
   function nextThrow() {
     if (game.mode === 'tower') {
       if (game.tower.floorDamage >= game.tower.def) {
+        resolveTowerFloor();
+        return;
+      }
+      if (!game.tower.balls.some((b) => !b.usedThisFloor)) {
         resolveTowerFloor();
         return;
       }
@@ -1715,15 +1813,13 @@ body {
 
   function rollTowerOptions() {
     const t = game.tower;
-    const owned = new Set(t.balls.map((b) => b.id));
     const pool = [];
     for (const id of Object.keys(BALL_TYPES)) {
-      if (!owned.has(id)) pool.push({ kind: 'new', id });
+      pool.push({ kind: 'new', id });
     }
     t.balls.forEach((b, i) => {
       if (b.level < 5) pool.push({ kind: 'upgrade', index: i });
     });
-    while (pool.length < 3) pool.push({ kind: 'heart' });
     const shuffled = pool.slice();
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -1748,7 +1844,7 @@ body {
         const type = BALL_TYPES[opt.id];
         btn.innerHTML =
           '<b>' + type.name + ' · 新冰球</b>' +
-          '<span class="ball-meta">获得 Lv.1</span>' +
+          '<span class="ball-meta">获得 Lv.1（可重复种类）</span>' +
           '<span class="ball-desc">' + type.desc + '</span>';
       } else if (opt.kind === 'upgrade') {
         const ball = t.balls[opt.index];
@@ -1775,7 +1871,7 @@ body {
     const opt = t.options[i];
     if (!opt) return;
     if (opt.kind === 'new') {
-      t.balls.push({ id: opt.id, level: 1 });
+      t.balls.push({ id: opt.id, level: 1, usedThisFloor: false });
       t.selectedBall = t.balls.length - 1;
     } else if (opt.kind === 'upgrade') {
       t.balls[opt.index].level = Math.min(5, t.balls[opt.index].level + 1);
@@ -1801,13 +1897,15 @@ body {
       return;
     }
     ballBar.classList.remove('hidden');
+    ballBar.style.justifyContent = t.balls.length <= 4 ? 'center' : 'flex-start';
     t.balls.forEach((ball, i) => {
       const type = ballType(ball);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'ball-chip';
       if (i === t.selectedBall) btn.classList.add('selected');
-      btn.disabled = game.phase !== 'aim';
+      if (ball.usedThisFloor) btn.classList.add('used');
+      btn.disabled = game.phase !== 'aim' || ball.usedThisFloor;
       btn.innerHTML =
         '<span class="ball-name">' +
         type.name.replace('球', '') +
@@ -1818,11 +1916,18 @@ body {
       btn.addEventListener('click', () => selectBall(i));
       ballBar.appendChild(btn);
     });
+    const selected = ballBar.querySelector('.ball-chip.selected');
+    if (selected) {
+      const target =
+        selected.offsetLeft - (ballBar.clientWidth - selected.clientWidth) / 2;
+      ballBar.scrollLeft = Math.max(0, target);
+    }
   }
 
   function selectBall(i) {
     const t = game.tower;
     if (game.mode !== 'tower' || game.phase !== 'aim') return;
+    if (t.balls[i] && t.balls[i].usedThisFloor) return;
     t.selectedBall = i;
     const s = game.stones[0];
     if (s) {
@@ -1864,6 +1969,7 @@ body {
     t.options = [];
     t.upgraded = false;
     t.chosenOption = -1;
+    t.balls.forEach((b) => { b.usedThisFloor = false; });
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -1877,6 +1983,7 @@ body {
     t.upgraded = false;
     t.options = [];
     t.chosenOption = -1;
+    t.balls.forEach((b) => { b.usedThisFloor = false; });
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -2220,13 +2327,14 @@ body {
 
     const minX = -WORLD.halfWidth + s.r;
     const maxX = WORLD.halfWidth - s.r;
+    const wallBounce = s.ballBounce ? 0.88 : 0.55;
     if (s.x < minX) {
       s.x = minX;
-      s.vx = Math.abs(s.vx) * 0.55;
+      s.vx = Math.abs(s.vx) * wallBounce;
       onWallHit(s);
     } else if (s.x > maxX) {
       s.x = maxX;
-      s.vx = -Math.abs(s.vx) * 0.55;
+      s.vx = -Math.abs(s.vx) * wallBounce;
       onWallHit(s);
     }
 
@@ -2315,11 +2423,12 @@ body {
       let hitGate = false;
       for (const g of row.gates) {
         if (g.used) continue;
+        const gx = gateX(g);
         const half = g.w / 2;
-        if (Math.abs(s.x - g.x) <= half) {
+        if (Math.abs(s.x - gx) <= half) {
           g.used = true;
           hitGate = true;
-          applyGate(s, g, row);
+          applyGate(s, g, row, gx);
           break;
         }
       }
@@ -2337,28 +2446,29 @@ body {
     }
   }
 
-  function applyGate(s, g, row) {
+  function applyGate(s, g, row, gx) {
     const def = GATE_DEFS[g.type];
     const color = GATE_COLORS[def.color];
-    const perfect = Math.abs(s.x - g.x) <= g.w * 0.15;
+    const x = gx == null ? g.x : gx;
+    const perfect = Math.abs(s.x - x) <= g.w * 0.15;
 
     game.gateChain += 1;
     game.maxChain = Math.max(game.maxChain, game.gateChain);
     game.combo += 1;
     game.comboTimer = 2.6;
     game.maxCombo = Math.max(game.maxCombo, game.combo);
-    addPopup(g.x, row.y + 1.9, def.name, color, 0.8);
+    addPopup(x, row.y + 1.9, def.name, color, 0.8);
     if (game.gateChain > 1) {
-      addPopup(g.x, row.y + 3.4, '门链 x' + game.gateChain, '#ffd34d', 0.7);
+      addPopup(x, row.y + 3.4, '门链 x' + game.gateChain, '#ffd34d', 0.7);
     }
-    burst(g.x, row.y, color, 16, 0.7);
+    burst(x, row.y, color, 16, 0.7);
     game.shake = Math.max(game.shake, 4);
     haptic(8);
     AudioFX.gate();
 
     if (perfect) {
       game.gateMult = Math.min(GATE_MULT_MAX, game.gateMult + 0.5);
-      addPopup(g.x, row.y + 2.7, 'PERFECT +0.5x', '#ffd34d', 0.7);
+      addPopup(x, row.y + 2.7, 'PERFECT +0.5x', '#ffd34d', 0.7);
       AudioFX.perfect();
     }
 
@@ -2552,6 +2662,23 @@ body {
         const damp = clamp(0.14 / (stone.mass + 0.14) * 0.9, 0.02, 0.25);
         stone.vx *= 1 - damp;
         stone.vy *= 1 - damp;
+      }
+
+      if (stone.ballBomb && !stone.ballBombUsed) {
+        stone.ballBombUsed = true;
+        ring(p.x, p.y, '#ef4444');
+        burst(p.x, p.y, '#ef4444', 18, 1.0);
+        game.shake = Math.max(game.shake, 8);
+        addPopup(p.x, p.y + 0.8, '爆裂!', '#ef4444', 1.0);
+        for (const other of game.pins) {
+          if (other.hit) continue;
+          const dx = other.x - p.x;
+          const dy = other.y - p.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 0.001 && d < 1.25) {
+            hitPin(other, dx / d, dy / d, 3.0, 1, null);
+          }
+        }
       }
     }
 
@@ -2972,7 +3099,8 @@ body {
       for (const g of row.gates) {
         const def = GATE_DEFS[g.type];
         const color = GATE_COLORS[def.color];
-        const p = project(g.x, row.y);
+        const gx = gateX(g);
+        const p = project(gx, row.y);
         const half = (g.w / 2) * p.ppm;
         const h = clamp(62 * p.scale, 24, 58);
 
@@ -3012,6 +3140,12 @@ body {
         ctx.fillStyle = color;
         ctx.font = '700 ' + clamp(10 * p.scale + 5, 8, 12) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
         ctx.fillText(def.value, p.sx, p.sy + h * 0.44);
+
+        if (g.move) {
+          ctx.fillStyle = color + 'cc';
+          ctx.font = '700 9px "PingFang SC","Microsoft YaHei",sans-serif';
+          ctx.fillText('↔', p.sx, p.sy + h * 0.78);
+        }
 
         if (g.used) {
           ctx.fillStyle = 'rgba(255,255,255,0.8)';
@@ -3181,7 +3315,7 @@ body {
     const barW = 14;
     const barH = 74;
     const side = p.sx > W * 0.5 ? -1 : 1;
-    const x = p.sx + side * (r + 20);
+    const x = p.sx + side * (r + 100);
     const bottom = p.sy + 30;
     const top = bottom - barH;
     const power = game.aim.power;
