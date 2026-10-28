@@ -79,6 +79,7 @@ E:\Project\curling-gates-v0.3-backup\dist\curling-gates.html
 | tag `v0.7-fullpower` | v0.7 取消力度/擦冰、固定满力、圆形门、大旋弧 |
 | tag `v0.8-campaign` | v0.8 10 关独立闯关 |
 | tag `v0.8-ui` | v0.8 UI V2（HUD/选关/底部 dock/无障碍） |
+| tag `v0.8-visual` | v0.8 Art Pass + UI 遮挡修正（冰壶/钉子/门/大本营） |
 | `E:\Project\curling-gates-v0.3-backup` | v0.3 独立源码备份 |
 
 > 新功能开发期间，`master` 不会被修改；随时可以切回。

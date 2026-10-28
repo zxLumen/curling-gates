@@ -1019,8 +1019,8 @@ button:focus-visible {
 }
 
 .objective-card {
-  margin-top: 9px;
-  padding: 8px 11px 9px;
+  margin-top: 6px;
+  padding: 7px 10px 7px;
   border-radius: 15px;
   border: 1px solid rgba(151, 213, 255, 0.16);
   background: linear-gradient(180deg, rgba(10, 30, 55, 0.72), rgba(5, 17, 33, 0.62));
@@ -1077,18 +1077,27 @@ button:focus-visible {
 }
 
 #hint {
-  min-height: 0;
-  margin-top: 5px;
-  padding: 0 1px;
+  position: absolute;
+  left: 14px;
+  bottom: calc(134px + env(safe-area-inset-bottom));
+  max-width: 176px;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(4, 17, 33, 0.6);
+  border: 1px solid rgba(151, 213, 255, 0.12);
+  backdrop-filter: blur(8px);
   text-align: left;
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  color: rgba(198, 228, 246, 0.66);
+  letter-spacing: 0.02em;
+  color: rgba(205, 233, 248, 0.74);
   text-shadow: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 4;
 }
 
 .bottom-dock {
@@ -1706,26 +1715,34 @@ button:focus-visible {
 /* ---------- Toast ---------- */
 
 #toast {
-  top: calc(174px + env(safe-area-inset-top));
+  left: 14px;
+  right: auto;
+  top: auto;
+  bottom: calc(172px + env(safe-area-inset-bottom));
   width: max-content;
-  max-width: calc(100% - 40px);
-  padding: 10px 15px;
-  border-radius: 14px;
-  border: 1px solid rgba(151, 213, 255, 0.26);
-  background: linear-gradient(180deg, rgba(14, 39, 67, 0.94), rgba(5, 18, 35, 0.94));
+  max-width: min(250px, calc(100% - 28px));
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(151, 213, 255, 0.22);
+  background: linear-gradient(180deg, rgba(14, 39, 67, 0.9), rgba(5, 18, 35, 0.9));
   color: rgba(240, 251, 255, 0.94);
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.4;
-  letter-spacing: 0.015em;
-  text-align: center;
+  letter-spacing: 0.01em;
+  text-align: left;
   white-space: normal;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   z-index: 6;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
 }
 
 #toast.show {
-  transform: translate(-50%, 0);
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ---------- Motion ---------- */
@@ -1759,17 +1776,17 @@ button:focus-visible {
 }
 
 #toast.show {
-  animation: toast-in 0.2s ease;
+  animation: toast-in 0.18s ease;
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -6px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 
