@@ -1,6 +1,6 @@
 {
   "name": "curling-gates-prototype",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "冰壶大作战 10 秒原型：吃门变强、分裂清屏",
   "scripts": {
