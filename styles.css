@@ -570,6 +570,11 @@ body {
   box-shadow: 0 0 14px rgba(255, 211, 77, 0.25);
 }
 
+.ball-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .ball-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

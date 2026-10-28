@@ -578,6 +578,11 @@ body {
   box-shadow: 0 0 14px rgba(255, 211, 77, 0.25);
 }
 
+.ball-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .ball-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -765,7 +770,7 @@ body {
       <h1 id="towerTitle">第 1 层突破</h1>
       <p id="towerSub" class="tagline">伤害 0 / 防御 0</p>
       <div id="towerBalls" class="ball-grid"></div>
-      <p id="towerTip" class="tower-tip">选择一颗冰球强化</p>
+      <p id="towerTip" class="tower-tip">每层只能强化 1 颗 · 升级后才能进入下一层</p>
       <div id="towerAtk" class="tower-atk">攻击加成 +0%</div>
       <button id="towerNextBtn" class="primary">进入下一层</button>
       <button id="towerRetryBtn" class="primary hidden">重试本层</button>
