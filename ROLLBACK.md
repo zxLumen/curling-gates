@@ -1,7 +1,7 @@
 # 回退说明
 
 当前基线：**v0.3 爽快模式**（tag：`v0.3-baseline`）。
-新功能：**v0.4 蓄力/重开/旋弧 + 爬塔模式**（tag：`v0.4-tower`）。
+新功能：**v0.5 冰球爬塔 + 往返力度条**（tag：`v0.5-ball-tower`）。
 
 ## 方式 1：Git 回退（推荐）
 
@@ -71,9 +71,10 @@ E:\Project\curling-gates-v0.3-backup\dist\curling-gates.html
 | 分支 / 位置 | 内容 |
 |---|---|
 | `master` | v0.3 爽快模式基线 |
-| `feature/tower-mode` | v0.4 蓄力/重开 + 爬塔模式 |
+| `feature/tower-mode` | v0.5 冰球爬塔 + 蓄力/重开 |
 | tag `v0.3-baseline` | v0.3 Git 基线 |
 | tag `v0.4-tower` | v0.4 新功能快照 |
+| tag `v0.5-ball-tower` | v0.5 冰球爬塔 + 往返力度条 |
 | `E:\Project\curling-gates-v0.3-backup` | v0.3 独立源码备份 |
 
 > 新功能开发期间，`master` 不会被修改；随时可以切回。

@@ -27,15 +27,15 @@
   const towerBadge = document.getElementById('towerBadge');
   const towerTitle = document.getElementById('towerTitle');
   const towerSub = document.getElementById('towerSub');
-  const towerStones = document.getElementById('towerStones');
+  const towerBalls = document.getElementById('towerBalls');
   const towerTip = document.getElementById('towerTip');
   const towerAtk = document.getElementById('towerAtk');
-  const towerRunes = document.getElementById('towerRunes');
   const towerNextBtn = document.getElementById('towerNextBtn');
   const towerRetryBtn = document.getElementById('towerRetryBtn');
   const towerEndBtn = document.getElementById('towerEndBtn');
   const resultStatsEl = document.getElementById('resultStats');
   const restartBtn = document.getElementById('restartBtn');
+  const ballBar = document.getElementById('ballBar');
   const muteBtn = document.getElementById('muteBtn');
 
   // =========================================================================
@@ -61,7 +61,7 @@
   const SLIDE_TIME_SCALE = 1.15;
   const CURL_ACCEL = 0.26;
   const CHARGE_TIME = 1.05;
-  const CHARGE_MIN = 0.18;
+  const CHARGE_MIN = 0.08;
   const AIM_DRAG_PX = 110;
   const TARGET_SCORE = 6000;
   const THREE_STAR_SCORE = 10000;
@@ -70,8 +70,13 @@
   const TOWER_BEST_KEY = 'curling-gates-tower-best-v1';
   const TOWER_BASE_DEF = 2000;
   const TOWER_DEF_GROWTH = 1.55;
-  const TOWER_MAX_HEARTS = 5;
-  const TOWER_MAX_SLOTS = 6;
+
+  const BALL_TYPES = {
+    standard: { name: '标准球', color: '#ff6b4a', radius: 1.0, atk: 0.0, desc: '均衡，稳定得分' },
+    giant: { name: '巨力球', color: '#ffd34d', radius: 1.3, atk: 0.05, desc: '更大更重，撞击更强' },
+    curl: { name: '旋弧球', color: '#5fe3ff', radius: 0.95, atk: 0.1, desc: '旋弧 ×1.6，适合绕门' },
+    split: { name: '分裂球', color: '#39e58c', radius: 0.9, atk: 0.15, desc: '首次过门分裂成两颗' }
+  };
 
   const GATE_COLORS = {
     growth: '#39e58c',
@@ -363,14 +368,16 @@
       floor: 1,
       def: TOWER_BASE_DEF,
       hearts: 3,
-      stones: [1, 1, 1],
-      runeAtk: 0,
-      bonusThrows: 0,
       floorDamage: 0,
       bestFloor: 0,
-      selected: [],
-      runeChosen: false,
-      runeId: null
+      balls: [
+        { id: 'standard', level: 1 },
+        { id: 'giant', level: 1 },
+        { id: 'curl', level: 1 },
+        { id: 'split', level: 1 }
+      ],
+      selectedBall: 0,
+      upgraded: false
     },
     time: 0
   };
@@ -396,6 +403,10 @@
       shield: !!o.shield,
       alive: true,
       active: !!o.active,
+      ballId: o.ballId || null,
+      ballLevel: o.ballLevel || 1,
+      ballColor: o.ballColor || null,
+      ballSplitUsed: false,
       trail: []
     };
   }
@@ -481,16 +492,29 @@
     return 0;
   }
 
-  function stoneBonus() {
-    let bonus = 0;
-    for (const lv of game.tower.stones) {
-      bonus += 0.1 * (Math.pow(2, lv - 1) - 1);
-    }
-    return bonus;
+  function getSelectedBall() {
+    const t = game.tower;
+    return t.balls[Math.max(0, Math.min(t.balls.length - 1, t.selectedBall))] || t.balls[0];
+  }
+
+  function ballType(ball) {
+    return BALL_TYPES[ball.id] || BALL_TYPES.standard;
+  }
+
+  function ballPower(ball) {
+    return 1 + 0.18 * (ball.level - 1) + ballType(ball).atk;
+  }
+
+  function ballRadius(ball) {
+    return R0 * ballType(ball).radius * (1 + 0.05 * (ball.level - 1));
+  }
+
+  function ballSpinMult(ball) {
+    return ball.id === 'curl' ? 1.6 + 0.12 * (ball.level - 1) : 1;
   }
 
   function towerAtkBonus() {
-    return stoneBonus() + game.tower.runeAtk;
+    return ballPower(getSelectedBall()) - 1;
   }
 
   function haptic(pattern) {
@@ -620,13 +644,16 @@
     t.floor = 1;
     t.def = TOWER_BASE_DEF;
     t.hearts = 3;
-    t.stones = [1, 1, 1];
-    t.runeAtk = 0;
-    t.bonusThrows = 0;
     t.floorDamage = 0;
     t.bestFloor = loadTowerBest();
-    t.selected = [];
-    t.runeChosen = false;
+    t.balls = [
+      { id: 'standard', level: 1 },
+      { id: 'giant', level: 1 },
+      { id: 'curl', level: 1 },
+      { id: 'split', level: 1 }
+    ];
+    t.selectedBall = 0;
+    t.upgraded = false;
     game.targetScore = TOWER_BASE_DEF;
     game.runTotalPins = 0;
     startThrow();
@@ -634,11 +661,20 @@
 
   function startThrow() {
     game.phase = 'aim';
-    game.throwsTotal = game.mode === 'tower' ? 3 + game.tower.bonusThrows : 3;
+    game.throwsTotal = 3;
     game.targetScore = game.mode === 'tower' ? game.tower.def : TARGET_SCORE;
     game.throwStartScore = game.score;
     game.throwMaxMult = 1;
-    game.stones = [makeStone(0, WORLD.releaseY)];
+    const selected = game.mode === 'tower' ? getSelectedBall() : null;
+    const selectedType = selected ? ballType(selected) : null;
+    game.stones = [
+      makeStone(0, WORLD.releaseY, selected ? {
+        r: ballRadius(selected),
+        ballId: selected.id,
+        ballLevel: selected.level,
+        ballColor: selectedType.color
+      } : {})
+    ];
     game.gates = buildGates();
     game.pins = buildPins();
     game.totalPins = game.pins.length;
@@ -666,6 +702,7 @@
     game.particles = [];
     game.popups = [];
     toastEl.classList.remove('show');
+    renderBallBar();
     updateHUD();
   }
 
@@ -677,13 +714,16 @@
     const speed = 4.5 + power * 7.0;
     s.vx = Math.sin(game.aim.angle) * speed;
     s.vy = Math.cos(game.aim.angle) * speed;
-    s.spin = game.spin;
+    s.spin =
+      game.spin *
+      (game.mode === 'tower' ? ballSpinMult(getSelectedBall()) : 1);
     s.active = true;
     game.phase = 'slide';
     game.aim.charging = false;
     game.aim.power = 0;
     game.settleTimer = 0.3;
     game.sweeping = false;
+    renderBallBar();
     AudioFX.throwStone();
   }
 
@@ -703,6 +743,7 @@
     game.settleTimer = 0;
     game.betweenTimer = 1.0;
     game.sweeping = false;
+    renderBallBar();
 
     if (game.mode === 'tower') {
       const damage = Math.round(gained * (1 + towerAtkBonus()));
@@ -738,11 +779,6 @@
     if (t.floorDamage >= t.def) {
       t.bestFloor = Math.max(t.bestFloor, t.floor);
       saveTowerBest(t.bestFloor);
-      if (t.stones.length < TOWER_MAX_SLOTS) {
-        t.stones.push(1);
-      } else {
-        t.runeAtk += 0.05;
-      }
       AudioFX.win();
       haptic([20, 30, 40]);
       showTowerClear();
@@ -767,21 +803,18 @@
     game.phase = 'towerClear';
     towerOverlay.classList.remove('hidden');
     towerBadge.textContent = '第 ' + t.floor + ' 层突破';
-    towerTitle.textContent = '选择强化';
+    towerTitle.textContent = '选择一颗冰球强化';
     towerSub.textContent = '伤害 ' + fmt(t.floorDamage) + ' / 防御 ' + fmt(t.def);
-    towerStones.classList.remove('hidden');
+    towerBalls.classList.remove('hidden');
     towerTip.classList.remove('hidden');
     towerAtk.classList.remove('hidden');
-    towerRunes.classList.remove('hidden');
     towerNextBtn.classList.remove('hidden');
     towerNextBtn.textContent = '进入第 ' + (t.floor + 1) + ' 层';
+    towerNextBtn.disabled = true;
     towerRetryBtn.classList.add('hidden');
     towerEndBtn.classList.add('hidden');
-    t.selected = [];
-    t.runeChosen = false;
-    t.runeId = null;
-    renderTowerStones();
-    renderTowerRunes();
+    t.upgraded = false;
+    renderTowerBalls();
     updateTowerAtkLabel();
   }
 
@@ -793,10 +826,9 @@
     towerTitle.textContent = '防御不足';
     towerSub.textContent =
       '伤害 ' + fmt(t.floorDamage) + ' / 防御 ' + fmt(t.def) + ' · 剩余 ' + t.hearts + ' 心';
-    towerStones.classList.add('hidden');
+    towerBalls.classList.add('hidden');
     towerTip.classList.add('hidden');
     towerAtk.classList.add('hidden');
-    towerRunes.classList.add('hidden');
     towerNextBtn.classList.add('hidden');
     towerRetryBtn.classList.remove('hidden');
     towerRetryBtn.textContent = '重试本层（❤' + t.hearts + '）';
@@ -804,114 +836,115 @@
     towerEndBtn.textContent = '放弃回主页';
   }
 
-  function renderTowerStones() {
+  function renderTowerBalls() {
     const t = game.tower;
-    towerStones.innerHTML = '';
-    for (let i = 0; i < TOWER_MAX_SLOTS; i++) {
+    towerBalls.innerHTML = '';
+    t.balls.forEach((ball, i) => {
+      const type = ballType(ball);
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'stone-btn';
-      if (i >= t.stones.length) {
-        btn.classList.add('empty');
-        btn.disabled = true;
-        btn.textContent = '—';
-      } else {
-        const lv = t.stones[i];
-        const pct = Math.round(0.1 * (Math.pow(2, lv - 1) - 1) * 100);
-        btn.innerHTML = '<b>Lv.' + lv + '</b><span class="lvl">+' + pct + '%</span>';
-        if (t.selected.includes(i)) btn.classList.add('selected');
-        btn.addEventListener('click', () => selectStone(i));
-      }
-      towerStones.appendChild(btn);
-    }
+      btn.className = 'ball-card';
+      if (i === t.selectedBall) btn.classList.add('selected');
+      if (t.upgraded) btn.disabled = true;
+      btn.innerHTML =
+        '<b>' +
+        type.name +
+        ' Lv.' +
+        ball.level +
+        '</b>' +
+        '<span class="ball-meta">攻击 +' +
+        Math.round((ballPower(ball) - 1) * 100) +
+        '%</span>' +
+        '<span class="ball-desc">' +
+        type.desc +
+        '</span>';
+      btn.addEventListener('click', () => upgradeBall(i));
+      towerBalls.appendChild(btn);
+    });
   }
 
-  function selectStone(i) {
+  function upgradeBall(i) {
     const t = game.tower;
-    if (t.selected.includes(i)) {
-      t.selected = t.selected.filter((x) => x !== i);
-      renderTowerStones();
-      return;
-    }
-    if (t.selected.length === 0) {
-      t.selected = [i];
-      renderTowerStones();
-      return;
-    }
-    const a = t.selected[0];
-    if (t.stones[a] === t.stones[i] && t.stones[a] < 5) {
-      const level = t.stones[a];
-      const hi = Math.max(a, i);
-      const lo = Math.min(a, i);
-      t.stones.splice(hi, 1);
-      t.stones.splice(lo, 1);
-      t.stones.push(level + 1);
-      t.selected = [];
-      AudioFX.gate();
-      haptic(10);
-      renderTowerStones();
-      updateTowerAtkLabel();
-      return;
-    }
-    if (t.stones[a] === t.stones[i] && t.stones[a] >= 5) {
-      showToast('已满级', 700);
-    }
-    t.selected = [i];
-    renderTowerStones();
-  }
-
-  function renderTowerRunes() {
-    const t = game.tower;
-    towerRunes.innerHTML = '';
-    const opts = [
-      { id: 'throw', label: '+1 壶（最多 5 壶）', disabled: t.bonusThrows >= 2 },
-      { id: 'atk', label: '攻击 +10%', disabled: false },
-      { id: 'heart', label: '+1 心（最多 5 心）', disabled: t.hearts >= TOWER_MAX_HEARTS }
-    ];
-    for (const opt of opts) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'rune-btn';
-      btn.textContent = opt.label;
-      if (opt.disabled) btn.disabled = true;
-      if (t.runeChosen && t.runeId === opt.id) btn.classList.add('chosen');
-      btn.addEventListener('click', () => applyRune(opt.id));
-      towerRunes.appendChild(btn);
-    }
-  }
-
-  function applyRune(id) {
-    const t = game.tower;
-    if (t.runeChosen) return;
-    t.runeChosen = true;
-    t.runeId = id;
-    if (id === 'throw') t.bonusThrows = Math.min(2, t.bonusThrows + 1);
-    if (id === 'atk') t.runeAtk += 0.1;
-    if (id === 'heart') t.hearts = Math.min(TOWER_MAX_HEARTS, t.hearts + 1);
+    if (t.upgraded) return;
+    t.upgraded = true;
+    t.selectedBall = i;
+    t.balls[i].level += 1;
     AudioFX.gate();
-    haptic(10);
-    renderTowerRunes();
+    haptic(12);
+    renderTowerBalls();
+    renderBallBar();
     updateTowerAtkLabel();
+    towerNextBtn.disabled = false;
+  }
+
+  function renderBallBar() {
+    const t = game.tower;
+    ballBar.innerHTML = '';
+    if (game.mode !== 'tower') {
+      ballBar.classList.add('hidden');
+      return;
+    }
+    ballBar.classList.remove('hidden');
+    t.balls.forEach((ball, i) => {
+      const type = ballType(ball);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ball-chip';
+      if (i === t.selectedBall) btn.classList.add('selected');
+      btn.disabled = game.phase !== 'aim';
+      btn.innerHTML =
+        '<span class="ball-name">' +
+        type.name.replace('球', '') +
+        '</span><span class="ball-lv">Lv.' +
+        ball.level +
+        '</span>';
+      if (i === t.selectedBall) btn.style.borderColor = type.color;
+      btn.addEventListener('click', () => selectBall(i));
+      ballBar.appendChild(btn);
+    });
+  }
+
+  function selectBall(i) {
+    const t = game.tower;
+    if (game.mode !== 'tower' || game.phase !== 'aim') return;
+    t.selectedBall = i;
+    const s = game.stones[0];
+    if (s) {
+      const ball = t.balls[i];
+      const type = ballType(ball);
+      s.r = ballRadius(ball);
+      s.mass = (s.r / R0) * (s.r / R0);
+      s.ballId = ball.id;
+      s.ballLevel = ball.level;
+      s.ballColor = type.color;
+    }
+    AudioFX.gate();
+    haptic(8);
+    renderBallBar();
+    updateHUD();
   }
 
   function updateTowerAtkLabel() {
+    const ball = getSelectedBall();
+    const type = ballType(ball);
     towerAtk.textContent =
-      '攻击加成 +' +
-      Math.round(towerAtkBonus() * 100) +
-      '% · 石头 +' +
-      Math.round(stoneBonus() * 100) +
+      '当前：' +
+      type.name +
+      ' Lv.' +
+      ball.level +
+      ' · 攻击 +' +
+      Math.round((ballPower(ball) - 1) * 100) +
       '%';
   }
 
   function nextTowerFloor() {
     const t = game.tower;
+    if (!t.upgraded) return;
     towerOverlay.classList.add('hidden');
     t.floor += 1;
     t.def = Math.round(t.def * TOWER_DEF_GROWTH);
     t.floorDamage = 0;
-    t.selected = [];
-    t.runeChosen = false;
-    t.runeId = null;
+    t.upgraded = false;
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -922,9 +955,7 @@
     const t = game.tower;
     towerOverlay.classList.add('hidden');
     t.floorDamage = 0;
-    t.selected = [];
-    t.runeChosen = false;
-    t.runeId = null;
+    t.upgraded = false;
     game.throwIndex = 0;
     game.throwScores = [];
     game.phase = 'aim';
@@ -939,6 +970,7 @@
     resultStatsEl.classList.remove('hidden');
     homeBtn.classList.remove('hidden');
     towerBtn.classList.add('hidden');
+    ballBar.classList.add('hidden');
 
     if (game.mode === 'tower') {
       const t = game.tower;
@@ -949,6 +981,7 @@
         '<div class="rs-row"><span>最高层数</span><b>第 ' + t.bestFloor + ' 层</b></div>' +
         '<div class="rs-row"><span>剩余心数</span><b>' + '❤'.repeat(Math.max(0, t.hearts)) + '</b></div>' +
         '<div class="rs-row"><span>攻击加成</span><b>+' + Math.round(towerAtkBonus() * 100) + '%</b></div>' +
+        '<div class="rs-row"><span>最高冰球</span><b>Lv.' + Math.max(...t.balls.map((b) => b.level)) + '</b></div>' +
         '<div class="rs-row"><span>通关层数</span><b>' + Math.max(0, t.floor - 1) + '</b></div>';
       AudioFX.fail();
       haptic(20);
@@ -1011,6 +1044,7 @@
     homeBtn.classList.add('hidden');
     footnoteEl.textContent = '3 壶 · 目标 6,000 · 3 星 10,000';
     towerOverlay.classList.add('hidden');
+    ballBar.classList.add('hidden');
     resultStatsEl.classList.add('hidden');
     resultStatsEl.innerHTML = '';
     setSpinUI();
@@ -1029,7 +1063,7 @@
 
   function updateAimAngle() {
     const dx = game.aim.curX - game.aim.startX;
-    game.aim.angle = clamp((dx / AIM_DRAG_PX) * 0.55, -0.55, 0.55);
+    game.aim.angle = clamp(-(dx / AIM_DRAG_PX) * 0.55, -0.55, 0.55);
   }
 
   function setSpin(v) {
@@ -1078,7 +1112,7 @@
   function endPointer() {
     if (game.phase === 'aim' && game.aim.charging) {
       game.aim.charging = false;
-      if (game.aim.power >= CHARGE_MIN) {
+      if (game.aim.chargeTime >= 0.08 && game.aim.power >= CHARGE_MIN) {
         doThrow();
       } else {
         game.aim.power = 0;
@@ -1403,6 +1437,11 @@
       default:
         break;
     }
+
+    if (s.alive && s.ballId === 'split' && !s.ballSplitUsed) {
+      s.ballSplitUsed = true;
+      splitStone(s, 2);
+    }
   }
 
   function growStone(s, mult) {
@@ -1621,16 +1660,21 @@
 
     if (game.phase === 'aim' && game.aim.charging) {
       game.aim.chargeTime += dt;
-      const power = clamp(game.aim.chargeTime / CHARGE_TIME, 0, 1);
-      game.aim.power = power;
-      const stage = Math.min(4, Math.floor(power * 4));
-      if (stage > game.aim.chargeStage) {
+      const period = CHARGE_TIME * 2;
+      const phase = game.aim.chargeTime % period;
+      const raw = phase <= CHARGE_TIME ? phase / CHARGE_TIME : 2 - phase / CHARGE_TIME;
+      game.aim.power = clamp(raw, 0, 1);
+      const stage = Math.min(4, Math.floor(game.aim.power * 4));
+      if (stage !== game.aim.chargeStage) {
         game.aim.chargeStage = stage;
         AudioFX.charge(stage);
         haptic(stage >= 4 ? 12 : 4);
       }
-      if (power >= 1 && !game.aim.maxed) {
+      if (game.aim.power >= 0.99 && !game.aim.maxed) {
         game.aim.maxed = true;
+      }
+      if (game.aim.power < 0.9) {
+        game.aim.maxed = false;
       }
     }
 
@@ -1702,13 +1746,14 @@
   // =========================================================================
   function ghostPath(power, angle) {
     const speed = 4.5 + power * 7.0;
+    const ball = game.mode === 'tower' ? getSelectedBall() : null;
     const s = {
       x: game.stones[0] ? game.stones[0].x : 0,
       y: game.stones[0] ? game.stones[0].y : WORLD.releaseY,
       vx: Math.sin(angle) * speed,
       vy: Math.cos(angle) * speed,
-      r: R0,
-      spin: game.spin,
+      r: ball ? ballRadius(ball) : R0,
+      spin: game.spin * (ball ? ballSpinMult(ball) : 1),
       friction: 1.55
     };
     const pts = [];
@@ -2146,7 +2191,7 @@
       ctx.beginPath();
       ctx.moveTo(p.sx - r * 0.55, p.sy);
       ctx.lineTo(p.sx + r * 0.55, p.sy);
-      ctx.strokeStyle = '#ff6b4a';
+      ctx.strokeStyle = s.ballColor || '#ff6b4a';
       ctx.lineWidth = Math.max(2, r * 0.22);
       ctx.lineCap = 'round';
       ctx.stroke();
@@ -2170,6 +2215,66 @@
         ctx.stroke();
       }
     }
+  }
+
+  function drawPowerBar(p, r) {
+    const SEGMENTS = 12;
+    const segH = 5;
+    const gap = 1.5;
+    const barH = SEGMENTS * segH + (SEGMENTS - 1) * gap;
+    const side = p.sx > W * 0.5 ? -1 : 1;
+    const x = p.sx + side * (r + 16);
+    const bottom = p.sy + 34;
+    const top = bottom - barH;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(4,14,28,0.55)';
+    roundRect(ctx, x - 10, top - 8, 20, barH + 16, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(140,210,255,0.25)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    const lit = Math.round(game.aim.power * SEGMENTS);
+    for (let i = 0; i < SEGMENTS; i++) {
+      const t = i / (SEGMENTS - 1);
+      const hue = 210 - 210 * t;
+      const y = bottom - (i + 1) * segH - i * gap;
+      if (i < lit) {
+        ctx.fillStyle = 'hsl(' + hue + ', 92%, 58%)';
+      } else {
+        ctx.fillStyle = 'hsla(' + hue + ', 70%, 55%, 0.14)';
+      }
+      roundRect(ctx, x - 6, y, 12, segH, 2);
+      ctx.fill();
+    }
+
+    // current power marker
+    const markerY = bottom - game.aim.power * barH;
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    if (side > 0) {
+      ctx.moveTo(x - 9, markerY);
+      ctx.lineTo(x - 15, markerY - 4);
+      ctx.lineTo(x - 15, markerY + 4);
+    } else {
+      ctx.moveTo(x + 9, markerY);
+      ctx.lineTo(x + 15, markerY - 4);
+      ctx.lineTo(x + 15, markerY + 4);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.textAlign = side > 0 ? 'left' : 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = '800 10px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillStyle = game.aim.power >= 0.99 ? '#ff4d5e' : 'rgba(234,247,255,0.85)';
+    ctx.fillText(
+      game.aim.power >= 0.99 ? 'MAX' : Math.round(game.aim.power * 100) + '%',
+      x + side * 14,
+      markerY
+    );
+    ctx.restore();
   }
 
   function drawAim() {
@@ -2256,6 +2361,8 @@
       ctx.fillText('按住蓄力', p.sx, p.sy - r - 50);
       ctx.restore();
     }
+
+    drawPowerBar(p, r);
   }
 
   function drawParticles() {
@@ -2402,19 +2509,13 @@
     staminaEl.style.width = Math.max(0, game.stamina * 100).toFixed(0) + '%';
     staminaWrap.style.opacity = game.phase === 'slide' ? '1' : '0.35';
 
-    if (game.phase === 'aim') {
-      const pct = Math.max(0, Math.min(1, game.aim.power)) * 100;
-      staminaEl.style.width = pct.toFixed(1) + '%';
-      staminaEl.style.background =
-        game.aim.power >= 0.99
-          ? 'linear-gradient(90deg, #ffd34d, #ff8a00)'
-          : 'linear-gradient(90deg, #5fe3ff, #ffd34d)';
-      staminaWrap.style.opacity = '1';
-    } else if (game.phase === 'slide') {
+    if (game.phase === 'slide') {
+      staminaEl.style.width = Math.max(0, game.stamina * 100).toFixed(0) + '%';
       staminaEl.style.background = 'linear-gradient(90deg, #5fe3ff, #39e58c)';
+      staminaWrap.style.opacity = '1';
     } else {
       staminaEl.style.width = '0%';
-      staminaWrap.style.opacity = '0.25';
+      staminaWrap.style.opacity = game.phase === 'aim' ? '0' : '0.25';
     }
 
     if (game.phase === 'slide') {
