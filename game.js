@@ -6,6 +6,7 @@
   // =========================================================================
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
+  const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const scoreEl = document.getElementById('score');
   const multEl = document.getElementById('mult');
   const comboEl = document.getElementById('combo');
@@ -35,6 +36,10 @@
   const levelSelectEl = document.getElementById('levelSelect');
   const levelGrid = document.getElementById('levelGrid');
   const levelBackBtn = document.getElementById('levelBackBtn');
+  const menuProgressText = document.getElementById('menuProgressText');
+  const menuProgressBar = document.getElementById('menuProgressBar');
+  const levelProgressText = document.getElementById('levelProgressText');
+  const levelProgressBar = document.getElementById('levelProgressBar');
   const resultStatsEl = document.getElementById('resultStats');
   const restartBtn = document.getElementById('restartBtn');
   const levelBtn = document.getElementById('levelBtn');
@@ -1034,6 +1039,7 @@
     AudioFX.init();
     const nextMode = mode || game.mode || 'campaign';
     game.mode = nextMode;
+    toastEl.classList.remove('show');
     overlayEl.classList.remove('show');
     overlayEl.style.display = 'none';
     overlayEl.classList.remove('result');
@@ -1115,12 +1121,15 @@
     game.mode = 'campaign';
     game.phase = 'levelSelect';
     game.campaign.maxLevel = loadCampaignBest();
+    toastEl.classList.remove('show');
     overlayEl.classList.remove('show');
     overlayEl.style.display = 'none';
     towerOverlay.classList.add('hidden');
     ballBar.classList.add('hidden');
     levelSelectEl.classList.remove('hidden');
     levelBtn.classList.add('hidden');
+    if (levelProgressText) levelProgressText.textContent = game.campaign.maxLevel + ' / 10';
+    if (levelProgressBar) levelProgressBar.style.width = (game.campaign.maxLevel / 10) * 100 + '%';
     renderLevelSelect();
   }
 
@@ -1128,13 +1137,15 @@
     if (!levelGrid) return;
     levelGrid.innerHTML = '';
     const cleared = game.campaign.maxLevel;
+    const nextLevel = Math.min(CAMPAIGN_LEVELS.length, cleared + 1);
     CAMPAIGN_LEVELS.forEach((cfg, i) => {
       const level = i + 1;
       const unlocked = level <= Math.min(CAMPAIGN_LEVELS.length, cleared + 1);
       const done = level <= cleared;
+      const current = !done && level === nextLevel;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'level-btn' + (unlocked ? '' : ' locked') + (done ? ' cleared' : '');
+      btn.className = 'level-btn' + (unlocked ? '' : ' locked') + (done ? ' cleared' : '') + (current ? ' current' : '');
       btn.disabled = !unlocked;
       const ballCount = (cfg.balls || []).reduce((sum, b) => sum + (b.count || 1), 0);
       btn.innerHTML =
@@ -1200,19 +1211,15 @@
     game.throwIndex = 0;
     game.phase = 'aim';
     startThrow();
-    showToast(
-      '第 ' + c.level + ' 关 · ' + c.config.name + ' — ' + campaignGoalShort(),
-      1800
-    );
   }
 
   function campaignGoalShort() {
     const g = game.campaign.goal;
     if (!g) return '伤害达标';
-    if (g.type === 'pins') return '撞中 ' + g.value + ' 个钉子';
-    if (g.type === 'gates') return '触发 ' + g.value + ' 个门';
-    if (g.type === 'perfect') return 'PERFECT ' + g.value + ' 次';
-    return '伤害达到 ' + fmt(g.value);
+    if (g.type === 'pins') return '钉子 ' + g.value;
+    if (g.type === 'gates') return '门 ' + g.value;
+    if (g.type === 'perfect') return 'PERFECT ' + g.value;
+    return '伤害 ' + g.value;
   }
 
   function campaignGoalMet() {
@@ -1823,10 +1830,11 @@
       if (titleEl) titleEl.textContent = c.victory ? '闯关成功！' : '闯关结束';
       startBtn.textContent = '选择关卡';
       footnoteEl.textContent = '10 关闯关 · 逐关解锁 · 最高第 ' + cleared + ' 关';
+      const ballTotal = t.balls.reduce((sum, b) => sum + b.count, 0);
       resultStatsEl.innerHTML =
         '<div class="rs-row"><span>到达关卡</span><b>第 ' + c.level + ' / 10 关</b></div>' +
         '<div class="rs-row"><span>最高通关</span><b>第 ' + cleared + ' 关</b></div>' +
-        '<div class="rs-row"><span>本关配球</span><b>' + t.balls.length + ' 颗</b></div>' +
+        '<div class="rs-row"><span>本关配球</span><b>' + ballTotal + ' 颗</b></div>' +
         '<div class="rs-row"><span>最高冰球</span><b>Lv.' + Math.max(...t.balls.map((b) => b.level)) + '</b></div>' +
         '<div class="rs-row"><span>当前目标</span><b>' + campaignGoalProgressText() + '</b></div>';
       if (c.victory) {
@@ -1893,6 +1901,7 @@
   function showMenu() {
     game.phase = 'menu';
     game.mode = 'campaign';
+    toastEl.classList.remove('show');
     game.score = 0;
     game.displayScore = 0;
     game.throwIndex = 0;
@@ -1903,6 +1912,8 @@
     game.stones = [makeStone(0, WORLD.releaseY)];
     game.tower.bestFloor = loadTowerBest();
     game.campaign.maxLevel = loadCampaignBest();
+    if (menuProgressText) menuProgressText.textContent = game.campaign.maxLevel + ' / 10';
+    if (menuProgressBar) menuProgressBar.style.width = (game.campaign.maxLevel / 10) * 100 + '%';
     const titleEl = overlayEl.querySelector('h1');
     if (titleEl) titleEl.textContent = '冰壶大作战';
     overlayEl.style.display = 'flex';
@@ -1950,7 +1961,9 @@
 
   function setSpinUI() {
     document.querySelectorAll('.spin-btn').forEach((b) => {
-      b.classList.toggle('active', Number(b.dataset.spin) === game.spin);
+      const active = Number(b.dataset.spin) === game.spin;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
   }
 
@@ -2938,27 +2951,6 @@
     ctx.arc(p.sx + r * 0.35, p.sy - r * 0.1, Math.max(1.5, r * 0.12), 0, TAU);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(4,12,24,0.82)';
-    const badgeText = game.mode === 'campaign'
-      ? (game.campaign.goal.type === 'pins'
-          ? '钉子 ' + game.campaign.goal.value
-          : game.campaign.goal.type === 'gates'
-            ? '门 ' + game.campaign.goal.value
-            : game.campaign.goal.type === 'perfect'
-              ? 'PERFECT ' + game.campaign.goal.value
-              : 'DEF ' + fmt(game.campaign.goal.value))
-      : 'DEF ' + fmt(t.def);
-    const badgeW = game.mode === 'campaign' ? 96 : 72;
-    roundRect(ctx, p.sx - badgeW / 2, p.sy - r - 28, badgeW, 18, 9);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(95,227,255,0.45)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.fillStyle = '#ffd34d';
-    ctx.font = '700 10px "PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(badgeText, p.sx, p.sy - r - 19);
     ctx.restore();
   }
 
@@ -3356,7 +3348,7 @@
     drawBackground();
 
     ctx.save();
-    if (game.shake > 0.3) {
+    if (!REDUCED_MOTION && game.shake > 0.3) {
       ctx.translate(rand(-game.shake, game.shake), rand(-game.shake, game.shake));
     }
     drawTrack();
@@ -3372,7 +3364,7 @@
 
     drawSnow();
 
-    if (game.flash > 0.01) {
+    if (!REDUCED_MOTION && game.flash > 0.01) {
       ctx.fillStyle = 'rgba(255,255,255,' + (game.flash * 0.35).toFixed(3) + ')';
       ctx.fillRect(0, 0, W, H);
     }
@@ -3400,19 +3392,20 @@
       let progress = liveDamage;
       let need = g && g.value ? g.value : 1;
       const phasePrefix = c.config.phases ? '阶段' + c.bossPhase + ' · ' : '';
-      let label = '第 ' + c.level + ' 关 · ' + phasePrefix + '伤害 ' + fmt(liveDamage) + '/' + fmt(need);
+      const levelHead = '第 ' + c.level + ' 关 · ' + c.config.name + ' · ' + phasePrefix;
+      let label = levelHead + '伤害 ' + fmt(liveDamage) + '/' + fmt(need);
       if (g && g.type === 'pins') {
         progress = c.pinsHit;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · ' + phasePrefix + '钉子 ' + progress + '/' + need;
+        label = levelHead + '钉子 ' + progress + '/' + need;
       } else if (g && g.type === 'gates') {
         progress = c.gatesHit;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · ' + phasePrefix + '门 ' + progress + '/' + need;
+        label = levelHead + '门 ' + progress + '/' + need;
       } else if (g && g.type === 'perfect') {
         progress = c.perfectHits;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · ' + phasePrefix + 'PERFECT ' + progress + '/' + need;
+        label = levelHead + 'PERFECT ' + progress + '/' + need;
       }
       targetLabelEl.textContent = label;
       const pct = Math.min(100, (progress / Math.max(1, need)) * 100);

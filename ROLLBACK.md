@@ -77,7 +77,8 @@ E:\Project\curling-gates-v0.3-backup\dist\curling-gates.html
 | tag `v0.5-ball-tower` | v0.5 冰球爬塔 + 往返力度条 |
 | tag `v0.6-rogue` | v0.6 单球开局/三选一/随机布局/平滑力度条 |
 | tag `v0.7-fullpower` | v0.7 取消力度/擦冰、固定满力、圆形门、大旋弧 |
-| tag `v0.8-campaign` | v0.8 爽快模式改为 10 关闯关 |
+| tag `v0.8-campaign` | v0.8 10 关独立闯关 |
+| tag `v0.8-ui` | v0.8 UI V2（HUD/选关/底部 dock/无障碍） |
 | `E:\Project\curling-gates-v0.3-backup` | v0.3 独立源码备份 |
 
 > 新功能开发期间，`master` 不会被修改；随时可以切回。

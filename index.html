@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#050b18">
-<title>冰壶大作战 · 10 秒原型</title>
+<meta name="theme-color" content="#040a16">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="冰壶大作战：10 关独立闯关，吃门变强，精准投掷。">
+<title>冰壶大作战 · 10 关闯关</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,65 +14,90 @@
   <canvas id="game" aria-label="冰壶大作战游戏画面"></canvas>
 
   <div id="hud">
-    <div class="hud-left">
-      <div class="score-label">得分</div>
-      <div id="score">0</div>
-      <div class="sub-row">
-        <span id="mult">×1.0</span>
-        <span id="combo">连击 0</span>
-        <span id="chain">门链 x0</span>
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="score-label">得分</div>
+        <div class="score-line">
+          <div id="score">0</div>
+          <span id="mult" class="mult-pill">×1.0</span>
+        </div>
+        <div class="stat-row">
+          <span id="combo" class="stat-pill">连击 0</span>
+          <span id="chain" class="stat-pill">门链 —</span>
+        </div>
       </div>
-      <div id="targetLabel">目标 6,000</div>
-      <div id="targetWrap"><div id="targetBar"></div></div>
+      <div class="hud-right">
+        <div id="bestLabel" class="resource-pill">冰球 1 · 攻击 +0%</div>
+        <div class="hud-btns">
+          <button id="levelBtn" class="hud-action restart-btn hidden" aria-label="选择关卡"><span>选关</span></button>
+          <button id="restartBtn" class="hud-action restart-btn" aria-label="重开本局"><span class="hud-action-icon">↻</span><span>重开</span></button>
+          <button id="muteBtn" class="hud-action icon-btn" aria-label="声音开关">🔊</button>
+        </div>
+      </div>
     </div>
-    <div class="hud-right">
-      <div id="throwLabel">第 1/3 壶</div>
-      <div id="bestLabel">最高 0</div>
-      <div class="hud-btns">
-        <button id="levelBtn" class="restart-btn hidden" aria-label="选择关卡">选关</button>
-        <button id="restartBtn" class="restart-btn" aria-label="重开本局">↻ 重开</button>
-        <button id="muteBtn" class="icon-btn" aria-label="声音开关">🔊</button>
+    <div class="objective-card">
+      <div class="objective-top">
+        <span id="targetLabel">目标 6,000</span>
+        <span id="throwLabel">第 1/3 壶</span>
       </div>
+      <div id="targetWrap"><div id="targetBar"></div></div>
+      <div id="hint">按住瞄准，手指指向目标</div>
     </div>
   </div>
 
-  <div id="toast"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <div id="bottom">
-    <div id="hint">按住瞄准，手指指向目标</div>
-    <div id="ballBar" class="ball-bar hidden"></div>
-    <div id="spinBar">
-      <button class="spin-btn" data-spin="-1">左旋</button>
-      <button class="spin-btn active" data-spin="0">直</button>
-      <button class="spin-btn" data-spin="1">右旋</button>
+    <div class="bottom-dock">
+      <div id="ballBar" class="ball-bar hidden"></div>
+      <div id="spinBar">
+        <button class="spin-btn" data-spin="-1"><span class="spin-glyph">↺</span><span>左旋</span></button>
+        <button class="spin-btn active" data-spin="0"><span class="spin-glyph">↑</span><span>直投</span></button>
+        <button class="spin-btn" data-spin="1"><span class="spin-glyph">↻</span><span>右旋</span></button>
+      </div>
     </div>
   </div>
 
   <div id="overlay" class="show">
-    <div class="card">
-      <div class="badge">10 关闯关</div>
-      <h1>冰壶大作战</h1>
-      <p class="tagline">10 关独立关卡 · 逐关解锁 · 吃门变强</p>
+    <div class="card menu-card">
+      <div class="menu-hero">
+        <div class="brand-kicker">ARCTIC CURL · 10 STAGES</div>
+        <h1>冰壶大作战</h1>
+        <p class="tagline">吃门变强 · 精准投掷 · 逐关解锁</p>
+      </div>
+      <div class="menu-progress">
+        <div class="menu-progress-top">
+          <span>闯关进度</span>
+          <b id="menuProgressText">0 / 10</b>
+        </div>
+        <div class="menu-progress-track"><div id="menuProgressBar"></div></div>
+      </div>
       <div class="how">
-        <div><b>1</b> 按住瞄准，手指指向目标</div>
-        <div><b>2</b> 松手投掷，始终满力</div>
-        <div><b>3</b> 每关目标不同：伤害 / 钉子 / 门</div>
-        <div><b>4</b> 每关独立配球，通关解锁下一关</div>
+        <div><b>1</b><span>按住瞄准，手指指向目标</span></div>
+        <div><b>2</b><span>松手投掷，始终满力</span></div>
+        <div><b>3</b><span>每关目标不同：伤害 / 钉子 / 门</span></div>
+        <div><b>4</b><span>每关独立配球，通关解锁下一关</span></div>
       </div>
       <div id="resultStats" class="result-stats hidden"></div>
-      <button id="startBtn" class="primary">闯关模式</button>
-      <button id="shareBtn" class="secondary hidden">分享成绩</button>
-      <button id="towerBtn" class="secondary">爬塔模式</button>
-      <button id="homeBtn" class="secondary hidden">回主页</button>
+      <div class="menu-actions">
+        <button id="startBtn" class="primary">闯关模式</button>
+        <button id="towerBtn" class="secondary">爬塔模式</button>
+        <button id="shareBtn" class="secondary hidden">分享成绩</button>
+        <button id="homeBtn" class="secondary hidden">回主页</button>
+      </div>
       <p id="footnote" class="footnote">10 关 · 逐关解锁 · 每关独立</p>
     </div>
   </div>
 
   <div id="levelSelect" class="hidden">
     <div class="card level-card">
-      <div class="badge">10 关闯关</div>
+      <div class="level-head">
+        <div class="badge">10 关闯关</div>
+        <div class="level-progress-text"><span>已通关</span><b id="levelProgressText">0 / 10</b></div>
+      </div>
       <h1>选择关卡</h1>
       <p class="tagline">逐关解锁 · 每关独立配球 · 不继承升级</p>
+      <div class="level-progress-track"><div id="levelProgressBar"></div></div>
       <div id="levelGrid" class="level-grid"></div>
       <button id="levelBackBtn" class="secondary">返回主菜单</button>
     </div>

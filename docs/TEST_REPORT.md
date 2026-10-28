@@ -12,6 +12,7 @@
 |---|---|
 | 爽快模式改闯关模式 | 10 个**独立**手工关卡；选关逐关解锁；每关独立预设冰球，无三选一/升级/跨关继承 |
 | 每关用球太多、玩着累 | 普通关硬上限 3 颗，Boss 5 颗；用布局/目标制造难度，不靠堆球 |
+| UI 信息拥挤、触控偏小 | HUD 重排为状态带 + 目标条 + 底部 dock；按钮 ≥44px；菜单/选关增加进度；统一弹层与动效 |
 | 取消力度和擦冰，始终满力 | 删除蓄力/力度条/擦冰体力；按住只瞄准，松手立即以旧版满力 **11.5 m/s** 投掷 |
 | 左右旋弧度再大点 | 旋弧加速度 `0.26 → 0.90`；满旋横向约 2.0m，接近边线 |
 | 圆形 buff 区，不要不可触发区 | 门改为**直径 = 设计宽度的完整圆**；圆内全部可触发；金色内圆 = PERFECT；删除横向条带 |
@@ -61,7 +62,10 @@
 | 33 | Boss 两阶段 | ✅ | 先破甲 10 钉，再打核心 5000 伤害；阶段切换重置伤害 |
 | 34 | 第 10 关通关 | ✅ | 两阶段完成显示「闯关成功！」与最高通关 |
 | 35 | 10 关完整实测 | ✅ | 使用每关预设球，从第 1 关实际投掷到第 10 关通关 |
-| 36 | JS 报错 | ✅ | 无 pageerror / console error |
+| 36 | UI V2 | ✅ | 状态带/目标条/底部 dock；菜单与选关进度；统一弹层 |
+| 37 | 触控与溢出 | ✅ | 按钮 ≥44px；390/360 宽无横向溢出；Toast 居中 |
+| 38 | 无障碍基础 | ✅ | focus-visible、prefers-reduced-motion、文字+图标不依赖颜色 |
+| 39 | JS 报错 | ✅ | 无 pageerror / console error |
 
 ## 3. 实测数据
 
@@ -131,6 +135,7 @@
 | 第 10 关·阶段 2 | [`screenshots/campaign-boss.png`](screenshots/campaign-boss.png) |
 | 关卡完成（无三选一） | [`screenshots/campaign-clear.png`](screenshots/campaign-clear.png) |
 | 失败重试 | [`screenshots/campaign-fail.png`](screenshots/campaign-fail.png) |
+| 通关结算 | [`screenshots/campaign-result.png`](screenshots/campaign-result.png) |
 | 圆形门 + 瞄准线 | [`screenshots/aim-line.png`](screenshots/aim-line.png) |
 | 满旋弧线 | [`screenshots/curl.png`](screenshots/curl.png) |
 | 爬塔初始（1 球） | [`screenshots/tower-aim.png`](screenshots/tower-aim.png) |

@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#050b18">
-<title>冰壶大作战 · 10 秒原型</title>
+<meta name="theme-color" content="#040a16">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="冰壶大作战：10 关独立闯关，吃门变强，精准投掷。">
+<title>冰壶大作战 · 10 关闯关</title>
 <style>
 :root {
   --bg: #050b18;
@@ -779,6 +781,1143 @@ body {
   }
 }
 
+/* =====================================================================
+   UI V2 — Arctic Broadcast
+   Design goals:
+   - HUD readable in glances, controls in thumb zone
+   - 44px+ touch targets, safe-area aware
+   - one primary action per screen, calm secondary actions
+   - no unnecessary motion; reduced-motion respected
+   ===================================================================== */
+
+:root {
+  --bg-0: #030812;
+  --bg-1: #07162b;
+  --bg-2: #0c2240;
+  --surface: rgba(10, 27, 50, 0.82);
+  --surface-strong: rgba(14, 36, 66, 0.94);
+  --surface-soft: rgba(255, 255, 255, 0.045);
+  --stroke: rgba(151, 213, 255, 0.18);
+  --stroke-strong: rgba(151, 213, 255, 0.34);
+  --accent: #6fe7ff;
+  --accent-deep: #2db8e4;
+  --gold: #ffd15c;
+  --green: #46e6a0;
+  --red: #ff6577;
+  --text: #f2faff;
+  --muted: #9bbbd1;
+  --dim: #6f8da5;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 26px;
+  --shadow-card: 0 28px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-cyan: 0 12px 32px rgba(56, 200, 240, 0.28);
+  --font-ui: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --font-num: "DIN Alternate", "Bahnschrift", "SF Pro Display", "PingFang SC", sans-serif;
+}
+
+html,
+body {
+  background: var(--bg-0);
+  font-family: var(--font-ui);
+}
+
+#app {
+  background:
+    radial-gradient(110% 70% at 50% -10%, rgba(58, 148, 220, 0.26) 0%, transparent 55%),
+    radial-gradient(80% 50% at 50% 105%, rgba(25, 88, 130, 0.18) 0%, transparent 60%),
+    linear-gradient(180deg, #061225 0%, #030812 60%, #02060d 100%);
+}
+
+#app::after {
+  background:
+    radial-gradient(ellipse at 50% 42%, transparent 24%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(180deg, rgba(2, 7, 15, 0.28), transparent 18%, transparent 80%, rgba(2, 7, 15, 0.42));
+}
+
+button {
+  font-family: var(--font-ui);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---------- HUD ---------- */
+
+#hud {
+  top: 0;
+  padding: calc(10px + env(safe-area-inset-top)) 14px 0;
+  display: block;
+  z-index: 3;
+}
+
+.hud-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hud-left {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.score-label {
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  color: rgba(180, 218, 240, 0.68);
+  font-weight: 700;
+}
+
+.score-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+#score {
+  font-family: var(--font-num);
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  text-shadow: 0 4px 24px rgba(95, 227, 255, 0.32);
+  font-variant-numeric: tabular-nums;
+}
+
+.mult-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 209, 92, 0.36);
+  background: rgba(255, 209, 92, 0.11);
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stat-row {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(5, 18, 35, 0.55);
+  border: 1px solid rgba(151, 213, 255, 0.14);
+  color: rgba(196, 228, 246, 0.8);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+#mult,
+#combo,
+#chain {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+#mult {
+  color: var(--gold);
+}
+
+#chain {
+  color: #ffd976;
+}
+
+.hud-right {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+
+.resource-pill {
+  max-width: 182px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(5, 18, 35, 0.52);
+  border: 1px solid rgba(151, 213, 255, 0.16);
+  color: rgba(215, 239, 252, 0.86);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.hud-action {
+  pointer-events: auto;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(151, 213, 255, 0.2);
+  background: linear-gradient(180deg, rgba(20, 46, 78, 0.86), rgba(7, 22, 42, 0.86));
+  color: rgba(236, 249, 255, 0.92);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.hud-action-icon {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.hud-action:active {
+  transform: scale(0.95);
+  background: rgba(42, 103, 142, 0.9);
+}
+
+.hud-action.icon-btn {
+  width: 44px;
+  padding: 0;
+  font-size: 15px;
+  border-radius: 50%;
+}
+
+#throwLabel {
+  color: rgba(222, 244, 255, 0.9);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(5, 18, 35, 0.54);
+  border: 1px solid rgba(151, 213, 255, 0.14);
+  white-space: nowrap;
+}
+
+.objective-card {
+  margin-top: 9px;
+  padding: 8px 11px 9px;
+  border-radius: 15px;
+  border: 1px solid rgba(151, 213, 255, 0.16);
+  background: linear-gradient(180deg, rgba(10, 30, 55, 0.72), rgba(5, 17, 33, 0.62));
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.objective-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#targetLabel {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+  color: rgba(230, 247, 255, 0.92);
+  font-variant-numeric: tabular-nums;
+}
+
+#targetWrap {
+  width: 100%;
+  height: 5px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+#targetBar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #5fe3ff 0%, #b9f4ff 52%, #ffd15c 100%);
+  box-shadow: 0 0 12px rgba(95, 227, 255, 0.45);
+  transition: width 0.16s linear;
+}
+
+/* ---------- Bottom controls ---------- */
+
+#bottom {
+  bottom: 0;
+  padding: 0 14px calc(10px + env(safe-area-inset-bottom));
+  gap: 5px;
+  z-index: 3;
+}
+
+#hint {
+  min-height: 0;
+  margin-top: 5px;
+  padding: 0 1px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgba(198, 228, 246, 0.66);
+  text-shadow: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottom-dock {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px;
+  border-radius: 21px;
+  border: 1px solid rgba(151, 213, 255, 0.16);
+  background: linear-gradient(180deg, rgba(12, 32, 58, 0.82), rgba(4, 15, 30, 0.9));
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+.ball-bar {
+  gap: 6px;
+  padding-bottom: 0;
+  min-height: 44px;
+  align-items: stretch;
+}
+
+.ball-chip {
+  flex: 0 0 auto;
+  min-width: 86px;
+  height: 44px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(151, 213, 255, 0.18);
+  background: linear-gradient(180deg, rgba(16, 39, 68, 0.9), rgba(6, 20, 38, 0.9));
+  color: var(--text);
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.ball-chip .ball-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(240, 251, 255, 0.92);
+}
+
+.ball-chip .ball-lv {
+  font-size: 10px;
+  color: var(--muted);
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ball-chip.selected {
+  border-color: rgba(255, 209, 92, 0.72);
+  background: linear-gradient(180deg, rgba(74, 64, 31, 0.56), rgba(24, 27, 26, 0.9));
+  box-shadow: 0 0 0 1px rgba(255, 209, 92, 0.16), 0 6px 18px rgba(255, 209, 92, 0.1);
+}
+
+.ball-chip.used {
+  opacity: 0.34;
+}
+
+.ball-chip:active {
+  transform: scale(0.97);
+}
+
+#spinBar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 15px;
+  background: rgba(2, 12, 25, 0.5);
+  border: 1px solid rgba(151, 213, 255, 0.1);
+}
+
+.spin-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 11px;
+  border: 0;
+  background: transparent;
+  color: rgba(181, 214, 233, 0.78);
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  letter-spacing: 0.03em;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.spin-glyph {
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.82;
+}
+
+.spin-btn.active {
+  color: #04121f;
+  background: linear-gradient(180deg, #a8f6ff, #42c9ec);
+  box-shadow: 0 4px 18px rgba(95, 227, 255, 0.3);
+}
+
+.spin-btn.active .spin-glyph {
+  opacity: 1;
+}
+
+/* ---------- Modal foundations ---------- */
+
+#overlay,
+#towerOverlay,
+#levelSelect {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(30, 93, 140, 0.12), transparent 60%),
+    rgba(2, 8, 17, 0.68);
+  backdrop-filter: blur(15px) saturate(1.15);
+}
+
+#overlay {
+  padding: calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+  z-index: 8;
+}
+
+#levelSelect {
+  z-index: 10;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+#towerOverlay {
+  z-index: 9;
+  padding: calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  max-height: calc(100dvh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding: 24px 20px 18px;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(23, 54, 90, 0.96), rgba(6, 19, 38, 0.98) 45%, rgba(4, 13, 27, 0.99)),
+    var(--surface-strong);
+  border: 1px solid rgba(173, 224, 255, 0.24);
+  box-shadow: var(--shadow-card);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  text-align: center;
+}
+
+.card::-webkit-scrollbar {
+  display: none;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(174, 238, 255, 0.8), transparent);
+  pointer-events: none;
+}
+
+.card h1 {
+  margin: 10px 0 5px;
+  font-size: 34px;
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #f6fcff;
+  text-shadow: 0 3px 24px rgba(95, 227, 255, 0.16);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.17em;
+  font-weight: 800;
+  color: #9ff1ff;
+  background: rgba(95, 227, 255, 0.09);
+  border: 1px solid rgba(95, 227, 255, 0.26);
+}
+
+.tagline {
+  margin: 0 0 16px;
+  color: rgba(186, 218, 236, 0.78);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* ---------- Menu ---------- */
+
+.menu-card {
+  padding: 26px 20px 18px;
+}
+
+.menu-hero {
+  padding: 2px 0 4px;
+}
+
+.brand-kicker {
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.24em;
+  font-weight: 800;
+  color: rgba(112, 232, 255, 0.62);
+}
+
+.menu-hero h1 {
+  margin: 8px 0 5px;
+  font-size: 39px;
+  letter-spacing: 0.015em;
+}
+
+.menu-hero .tagline {
+  margin: 0 0 14px;
+  font-size: 11px;
+}
+
+.menu-progress {
+  margin: 0 0 12px;
+  padding: 8px 10px 9px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(151, 213, 255, 0.12);
+  text-align: left;
+}
+
+.menu-progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(183, 216, 235, 0.72);
+}
+
+.menu-progress-top b {
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: rgba(239, 251, 255, 0.92);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-progress-track,
+.level-progress-track {
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+#menuProgressBar,
+#levelProgressBar {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4ee3ff, #b8f7ff 60%, #ffd15c);
+  box-shadow: 0 0 10px rgba(95, 227, 255, 0.38);
+  transition: width 0.35s ease;
+}
+
+.how {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  margin: 0 0 14px;
+  padding: 7px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(151, 213, 255, 0.1);
+  text-align: left;
+}
+
+.how > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  min-height: 27px;
+  padding: 4px 5px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: rgba(207, 235, 249, 0.82);
+}
+
+.how b {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(95, 227, 255, 0.12);
+  border: 1px solid rgba(95, 227, 255, 0.2);
+  color: #9ff1ff;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.primary {
+  height: 56px;
+  border: 0;
+  border-radius: 17px;
+  background: linear-gradient(180deg, #b1f8ff 0%, #62e1ff 35%, #30bfe6 100%);
+  color: #03121e;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(48, 185, 230, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.primary:active {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.96);
+  box-shadow: 0 6px 16px rgba(48, 185, 230, 0.26);
+}
+
+.primary:disabled {
+  opacity: 0.42;
+  box-shadow: none;
+  filter: grayscale(0.25);
+}
+
+.secondary {
+  height: 48px;
+  margin-top: 0;
+  border: 1px solid rgba(151, 213, 255, 0.2);
+  border-radius: 15px;
+  background: rgba(8, 25, 47, 0.74);
+  color: rgba(229, 247, 255, 0.9);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.secondary:active {
+  transform: scale(0.985);
+  background: rgba(95, 227, 255, 0.11);
+  border-color: rgba(151, 213, 255, 0.3);
+}
+
+.footnote {
+  margin: 12px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: rgba(143, 179, 204, 0.6);
+}
+
+/* Result mode: keep one clear primary action, trim the menu. */
+#overlay.result .how,
+#overlay.result .menu-progress,
+#overlay.result .menu-hero .tagline,
+#overlay.result .brand-kicker {
+  display: none;
+}
+
+#overlay.result .menu-hero h1 {
+  margin: 6px 0 8px;
+  font-size: 32px;
+}
+
+#overlay.result .card {
+  padding-top: 28px;
+}
+
+/* ---------- Level select ---------- */
+
+.level-card {
+  max-width: 390px;
+  padding: 22px 18px 16px;
+}
+
+.level-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.level-progress-text {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 9px;
+  color: rgba(183, 216, 235, 0.65);
+}
+
+.level-progress-text b {
+  font-family: var(--font-num);
+  color: rgba(239, 251, 255, 0.92);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.level-card h1 {
+  font-size: 30px;
+  margin-top: 10px;
+}
+
+.level-progress-track {
+  margin: 0 0 12px;
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.level-btn {
+  position: relative;
+  min-height: 92px;
+  padding: 10px 10px 9px;
+  border-radius: 17px;
+  border: 1px solid rgba(151, 213, 255, 0.17);
+  background:
+    linear-gradient(160deg, rgba(18, 45, 77, 0.9), rgba(7, 22, 42, 0.92));
+  color: var(--text);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.level-btn::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  bottom: -24px;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  border: 1px solid rgba(151, 213, 255, 0.08);
+  pointer-events: none;
+}
+
+.level-btn b {
+  display: block;
+  margin: 2px 0 3px;
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.level-num {
+  display: block;
+  color: rgba(111, 231, 255, 0.92);
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1;
+}
+
+.level-goal {
+  display: block;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.level-state {
+  display: block;
+  margin-top: 4px;
+  color: rgba(163, 199, 220, 0.65);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.level-btn.cleared {
+  border-color: rgba(70, 230, 160, 0.42);
+  background: linear-gradient(160deg, rgba(20, 67, 61, 0.82), rgba(6, 27, 31, 0.94));
+}
+
+.level-btn.cleared .level-state {
+  color: rgba(133, 238, 190, 0.9);
+}
+
+.level-btn.current {
+  border-color: rgba(111, 231, 255, 0.6);
+  background: linear-gradient(160deg, rgba(21, 70, 103, 0.9), rgba(6, 24, 46, 0.96));
+  box-shadow: 0 0 0 1px rgba(111, 231, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.level-btn.current .level-state {
+  color: rgba(180, 245, 255, 0.95);
+}
+
+.level-btn.locked {
+  opacity: 0.58;
+  cursor: not-allowed;
+  filter: saturate(0.55);
+}
+
+.level-btn:not(.locked):active {
+  transform: scale(0.975);
+}
+
+.level-btn.locked::after {
+  border-color: rgba(151, 213, 255, 0.03);
+}
+
+.level-card .secondary {
+  margin-top: 2px;
+}
+
+/* ---------- Tower / choice cards ---------- */
+
+.tower-card {
+  max-width: 380px;
+}
+
+.tower-card h1 {
+  font-size: 29px;
+}
+
+.ball-grid {
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.ball-card {
+  padding: 10px 9px;
+  border-radius: 15px;
+  border: 1px solid rgba(151, 213, 255, 0.2);
+  background: linear-gradient(160deg, rgba(18, 45, 77, 0.9), rgba(7, 22, 42, 0.92));
+  text-align: left;
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.ball-card:active {
+  transform: scale(0.98);
+}
+
+.ball-card b {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.ball-card .ball-meta {
+  font-size: 9px;
+}
+
+.ball-card .ball-desc {
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.tower-tip {
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.tower-atk {
+  font-size: 11px;
+  padding: 7px 8px;
+  border-radius: 11px;
+  background: rgba(255, 209, 92, 0.07);
+  border: 1px solid rgba(255, 209, 92, 0.15);
+}
+
+/* ---------- Result ---------- */
+
+.result-stats {
+  gap: 7px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(151, 213, 255, 0.1);
+}
+
+.rs-row {
+  min-height: 22px;
+  font-size: 10px;
+}
+
+.rs-row b {
+  font-family: var(--font-num);
+  font-size: 17px;
+}
+
+.rs-stars {
+  font-size: 30px;
+}
+
+/* ---------- Toast ---------- */
+
+#toast {
+  top: calc(174px + env(safe-area-inset-top));
+  width: max-content;
+  max-width: calc(100% - 40px);
+  padding: 10px 15px;
+  border-radius: 14px;
+  border: 1px solid rgba(151, 213, 255, 0.26);
+  background: linear-gradient(180deg, rgba(14, 39, 67, 0.94), rgba(5, 18, 35, 0.94));
+  color: rgba(240, 251, 255, 0.94);
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.015em;
+  text-align: center;
+  white-space: normal;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(10px);
+  z-index: 6;
+}
+
+#toast.show {
+  transform: translate(-50%, 0);
+}
+
+/* ---------- Motion ---------- */
+
+@keyframes ui-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ui-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+#overlay.show .card,
+#levelSelect:not(.hidden) .card,
+#towerOverlay:not(.hidden) .card {
+  animation: ui-rise 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+#overlay.show,
+#levelSelect:not(.hidden),
+#towerOverlay:not(.hidden) {
+  animation: ui-fade 0.2s ease;
+}
+
+#toast.show {
+  animation: toast-in 0.2s ease;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ---------- Responsive / ergonomics ---------- */
+
+@media (max-width: 360px) {
+  #hud {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #bottom {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #score {
+    font-size: 32px;
+  }
+
+  .hud-action {
+    height: 44px;
+    padding: 0 8px;
+  }
+
+  .hud-action.icon-btn {
+    width: 44px;
+  }
+
+  .card {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .level-card {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .level-btn {
+    min-height: 86px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .level-btn b {
+    font-size: 13px;
+  }
+
+  .how {
+    gap: 4px;
+  }
+
+  .how > div {
+    font-size: 9px;
+  }
+}
+
+@media (max-height: 720px) {
+  .card {
+    padding-top: 18px;
+    padding-bottom: 14px;
+  }
+
+  .menu-hero h1 {
+    font-size: 32px;
+    margin-top: 5px;
+  }
+
+  .menu-hero .tagline {
+    margin-bottom: 9px;
+  }
+
+  .how {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    padding: 6px;
+  }
+
+  .how > div {
+    min-height: 24px;
+    padding: 3px 4px;
+  }
+
+  .level-btn {
+    min-height: 78px;
+    padding-top: 8px;
+    padding-bottom: 7px;
+  }
+
+  .level-card h1 {
+    font-size: 26px;
+    margin: 7px 0 4px;
+  }
+
+  .level-card .tagline {
+    margin-bottom: 8px;
+  }
+
+  .primary {
+    height: 52px;
+  }
+
+  .secondary {
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Keyboard / large screen affordances */
+@media (hover: hover) {
+  .hud-action:hover,
+  .secondary:hover {
+    border-color: rgba(151, 213, 255, 0.34);
+    background-color: rgba(32, 70, 105, 0.7);
+  }
+
+  .level-btn:not(.locked):hover {
+    transform: translateY(-1px);
+    border-color: rgba(151, 213, 255, 0.36);
+  }
+
+  .ball-card:hover {
+    border-color: rgba(255, 209, 92, 0.34);
+  }
+}
+
+
 </style>
 </head>
 <body>
@@ -786,65 +1925,90 @@ body {
   <canvas id="game" aria-label="冰壶大作战游戏画面"></canvas>
 
   <div id="hud">
-    <div class="hud-left">
-      <div class="score-label">得分</div>
-      <div id="score">0</div>
-      <div class="sub-row">
-        <span id="mult">×1.0</span>
-        <span id="combo">连击 0</span>
-        <span id="chain">门链 x0</span>
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="score-label">得分</div>
+        <div class="score-line">
+          <div id="score">0</div>
+          <span id="mult" class="mult-pill">×1.0</span>
+        </div>
+        <div class="stat-row">
+          <span id="combo" class="stat-pill">连击 0</span>
+          <span id="chain" class="stat-pill">门链 —</span>
+        </div>
       </div>
-      <div id="targetLabel">目标 6,000</div>
-      <div id="targetWrap"><div id="targetBar"></div></div>
+      <div class="hud-right">
+        <div id="bestLabel" class="resource-pill">冰球 1 · 攻击 +0%</div>
+        <div class="hud-btns">
+          <button id="levelBtn" class="hud-action restart-btn hidden" aria-label="选择关卡"><span>选关</span></button>
+          <button id="restartBtn" class="hud-action restart-btn" aria-label="重开本局"><span class="hud-action-icon">↻</span><span>重开</span></button>
+          <button id="muteBtn" class="hud-action icon-btn" aria-label="声音开关">🔊</button>
+        </div>
+      </div>
     </div>
-    <div class="hud-right">
-      <div id="throwLabel">第 1/3 壶</div>
-      <div id="bestLabel">最高 0</div>
-      <div class="hud-btns">
-        <button id="levelBtn" class="restart-btn hidden" aria-label="选择关卡">选关</button>
-        <button id="restartBtn" class="restart-btn" aria-label="重开本局">↻ 重开</button>
-        <button id="muteBtn" class="icon-btn" aria-label="声音开关">🔊</button>
+    <div class="objective-card">
+      <div class="objective-top">
+        <span id="targetLabel">目标 6,000</span>
+        <span id="throwLabel">第 1/3 壶</span>
       </div>
+      <div id="targetWrap"><div id="targetBar"></div></div>
+      <div id="hint">按住瞄准，手指指向目标</div>
     </div>
   </div>
 
-  <div id="toast"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <div id="bottom">
-    <div id="hint">按住瞄准，手指指向目标</div>
-    <div id="ballBar" class="ball-bar hidden"></div>
-    <div id="spinBar">
-      <button class="spin-btn" data-spin="-1">左旋</button>
-      <button class="spin-btn active" data-spin="0">直</button>
-      <button class="spin-btn" data-spin="1">右旋</button>
+    <div class="bottom-dock">
+      <div id="ballBar" class="ball-bar hidden"></div>
+      <div id="spinBar">
+        <button class="spin-btn" data-spin="-1"><span class="spin-glyph">↺</span><span>左旋</span></button>
+        <button class="spin-btn active" data-spin="0"><span class="spin-glyph">↑</span><span>直投</span></button>
+        <button class="spin-btn" data-spin="1"><span class="spin-glyph">↻</span><span>右旋</span></button>
+      </div>
     </div>
   </div>
 
   <div id="overlay" class="show">
-    <div class="card">
-      <div class="badge">10 关闯关</div>
-      <h1>冰壶大作战</h1>
-      <p class="tagline">10 关独立关卡 · 逐关解锁 · 吃门变强</p>
+    <div class="card menu-card">
+      <div class="menu-hero">
+        <div class="brand-kicker">ARCTIC CURL · 10 STAGES</div>
+        <h1>冰壶大作战</h1>
+        <p class="tagline">吃门变强 · 精准投掷 · 逐关解锁</p>
+      </div>
+      <div class="menu-progress">
+        <div class="menu-progress-top">
+          <span>闯关进度</span>
+          <b id="menuProgressText">0 / 10</b>
+        </div>
+        <div class="menu-progress-track"><div id="menuProgressBar"></div></div>
+      </div>
       <div class="how">
-        <div><b>1</b> 按住瞄准，手指指向目标</div>
-        <div><b>2</b> 松手投掷，始终满力</div>
-        <div><b>3</b> 每关目标不同：伤害 / 钉子 / 门</div>
-        <div><b>4</b> 每关独立配球，通关解锁下一关</div>
+        <div><b>1</b><span>按住瞄准，手指指向目标</span></div>
+        <div><b>2</b><span>松手投掷，始终满力</span></div>
+        <div><b>3</b><span>每关目标不同：伤害 / 钉子 / 门</span></div>
+        <div><b>4</b><span>每关独立配球，通关解锁下一关</span></div>
       </div>
       <div id="resultStats" class="result-stats hidden"></div>
-      <button id="startBtn" class="primary">闯关模式</button>
-      <button id="shareBtn" class="secondary hidden">分享成绩</button>
-      <button id="towerBtn" class="secondary">爬塔模式</button>
-      <button id="homeBtn" class="secondary hidden">回主页</button>
+      <div class="menu-actions">
+        <button id="startBtn" class="primary">闯关模式</button>
+        <button id="towerBtn" class="secondary">爬塔模式</button>
+        <button id="shareBtn" class="secondary hidden">分享成绩</button>
+        <button id="homeBtn" class="secondary hidden">回主页</button>
+      </div>
       <p id="footnote" class="footnote">10 关 · 逐关解锁 · 每关独立</p>
     </div>
   </div>
 
   <div id="levelSelect" class="hidden">
     <div class="card level-card">
-      <div class="badge">10 关闯关</div>
+      <div class="level-head">
+        <div class="badge">10 关闯关</div>
+        <div class="level-progress-text"><span>已通关</span><b id="levelProgressText">0 / 10</b></div>
+      </div>
       <h1>选择关卡</h1>
       <p class="tagline">逐关解锁 · 每关独立配球 · 不继承升级</p>
+      <div class="level-progress-track"><div id="levelProgressBar"></div></div>
       <div id="levelGrid" class="level-grid"></div>
       <button id="levelBackBtn" class="secondary">返回主菜单</button>
     </div>
@@ -874,6 +2038,7 @@ body {
   // =========================================================================
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
+  const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const scoreEl = document.getElementById('score');
   const multEl = document.getElementById('mult');
   const comboEl = document.getElementById('combo');
@@ -903,6 +2068,10 @@ body {
   const levelSelectEl = document.getElementById('levelSelect');
   const levelGrid = document.getElementById('levelGrid');
   const levelBackBtn = document.getElementById('levelBackBtn');
+  const menuProgressText = document.getElementById('menuProgressText');
+  const menuProgressBar = document.getElementById('menuProgressBar');
+  const levelProgressText = document.getElementById('levelProgressText');
+  const levelProgressBar = document.getElementById('levelProgressBar');
   const resultStatsEl = document.getElementById('resultStats');
   const restartBtn = document.getElementById('restartBtn');
   const levelBtn = document.getElementById('levelBtn');
@@ -1902,6 +3071,7 @@ body {
     AudioFX.init();
     const nextMode = mode || game.mode || 'campaign';
     game.mode = nextMode;
+    toastEl.classList.remove('show');
     overlayEl.classList.remove('show');
     overlayEl.style.display = 'none';
     overlayEl.classList.remove('result');
@@ -1983,12 +3153,15 @@ body {
     game.mode = 'campaign';
     game.phase = 'levelSelect';
     game.campaign.maxLevel = loadCampaignBest();
+    toastEl.classList.remove('show');
     overlayEl.classList.remove('show');
     overlayEl.style.display = 'none';
     towerOverlay.classList.add('hidden');
     ballBar.classList.add('hidden');
     levelSelectEl.classList.remove('hidden');
     levelBtn.classList.add('hidden');
+    if (levelProgressText) levelProgressText.textContent = game.campaign.maxLevel + ' / 10';
+    if (levelProgressBar) levelProgressBar.style.width = (game.campaign.maxLevel / 10) * 100 + '%';
     renderLevelSelect();
   }
 
@@ -1996,13 +3169,15 @@ body {
     if (!levelGrid) return;
     levelGrid.innerHTML = '';
     const cleared = game.campaign.maxLevel;
+    const nextLevel = Math.min(CAMPAIGN_LEVELS.length, cleared + 1);
     CAMPAIGN_LEVELS.forEach((cfg, i) => {
       const level = i + 1;
       const unlocked = level <= Math.min(CAMPAIGN_LEVELS.length, cleared + 1);
       const done = level <= cleared;
+      const current = !done && level === nextLevel;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'level-btn' + (unlocked ? '' : ' locked') + (done ? ' cleared' : '');
+      btn.className = 'level-btn' + (unlocked ? '' : ' locked') + (done ? ' cleared' : '') + (current ? ' current' : '');
       btn.disabled = !unlocked;
       const ballCount = (cfg.balls || []).reduce((sum, b) => sum + (b.count || 1), 0);
       btn.innerHTML =
@@ -2068,19 +3243,15 @@ body {
     game.throwIndex = 0;
     game.phase = 'aim';
     startThrow();
-    showToast(
-      '第 ' + c.level + ' 关 · ' + c.config.name + ' — ' + campaignGoalShort(),
-      1800
-    );
   }
 
   function campaignGoalShort() {
     const g = game.campaign.goal;
     if (!g) return '伤害达标';
-    if (g.type === 'pins') return '撞中 ' + g.value + ' 个钉子';
-    if (g.type === 'gates') return '触发 ' + g.value + ' 个门';
-    if (g.type === 'perfect') return 'PERFECT ' + g.value + ' 次';
-    return '伤害达到 ' + fmt(g.value);
+    if (g.type === 'pins') return '钉子 ' + g.value;
+    if (g.type === 'gates') return '门 ' + g.value;
+    if (g.type === 'perfect') return 'PERFECT ' + g.value;
+    return '伤害 ' + g.value;
   }
 
   function campaignGoalMet() {
@@ -2691,10 +3862,11 @@ body {
       if (titleEl) titleEl.textContent = c.victory ? '闯关成功！' : '闯关结束';
       startBtn.textContent = '选择关卡';
       footnoteEl.textContent = '10 关闯关 · 逐关解锁 · 最高第 ' + cleared + ' 关';
+      const ballTotal = t.balls.reduce((sum, b) => sum + b.count, 0);
       resultStatsEl.innerHTML =
         '<div class="rs-row"><span>到达关卡</span><b>第 ' + c.level + ' / 10 关</b></div>' +
         '<div class="rs-row"><span>最高通关</span><b>第 ' + cleared + ' 关</b></div>' +
-        '<div class="rs-row"><span>本关配球</span><b>' + t.balls.length + ' 颗</b></div>' +
+        '<div class="rs-row"><span>本关配球</span><b>' + ballTotal + ' 颗</b></div>' +
         '<div class="rs-row"><span>最高冰球</span><b>Lv.' + Math.max(...t.balls.map((b) => b.level)) + '</b></div>' +
         '<div class="rs-row"><span>当前目标</span><b>' + campaignGoalProgressText() + '</b></div>';
       if (c.victory) {
@@ -2761,6 +3933,7 @@ body {
   function showMenu() {
     game.phase = 'menu';
     game.mode = 'campaign';
+    toastEl.classList.remove('show');
     game.score = 0;
     game.displayScore = 0;
     game.throwIndex = 0;
@@ -2771,6 +3944,8 @@ body {
     game.stones = [makeStone(0, WORLD.releaseY)];
     game.tower.bestFloor = loadTowerBest();
     game.campaign.maxLevel = loadCampaignBest();
+    if (menuProgressText) menuProgressText.textContent = game.campaign.maxLevel + ' / 10';
+    if (menuProgressBar) menuProgressBar.style.width = (game.campaign.maxLevel / 10) * 100 + '%';
     const titleEl = overlayEl.querySelector('h1');
     if (titleEl) titleEl.textContent = '冰壶大作战';
     overlayEl.style.display = 'flex';
@@ -2818,7 +3993,9 @@ body {
 
   function setSpinUI() {
     document.querySelectorAll('.spin-btn').forEach((b) => {
-      b.classList.toggle('active', Number(b.dataset.spin) === game.spin);
+      const active = Number(b.dataset.spin) === game.spin;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
   }
 
@@ -3806,27 +4983,6 @@ body {
     ctx.arc(p.sx + r * 0.35, p.sy - r * 0.1, Math.max(1.5, r * 0.12), 0, TAU);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(4,12,24,0.82)';
-    const badgeText = game.mode === 'campaign'
-      ? (game.campaign.goal.type === 'pins'
-          ? '钉子 ' + game.campaign.goal.value
-          : game.campaign.goal.type === 'gates'
-            ? '门 ' + game.campaign.goal.value
-            : game.campaign.goal.type === 'perfect'
-              ? 'PERFECT ' + game.campaign.goal.value
-              : 'DEF ' + fmt(game.campaign.goal.value))
-      : 'DEF ' + fmt(t.def);
-    const badgeW = game.mode === 'campaign' ? 96 : 72;
-    roundRect(ctx, p.sx - badgeW / 2, p.sy - r - 28, badgeW, 18, 9);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(95,227,255,0.45)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.fillStyle = '#ffd34d';
-    ctx.font = '700 10px "PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(badgeText, p.sx, p.sy - r - 19);
     ctx.restore();
   }
 
@@ -4224,7 +5380,7 @@ body {
     drawBackground();
 
     ctx.save();
-    if (game.shake > 0.3) {
+    if (!REDUCED_MOTION && game.shake > 0.3) {
       ctx.translate(rand(-game.shake, game.shake), rand(-game.shake, game.shake));
     }
     drawTrack();
@@ -4240,7 +5396,7 @@ body {
 
     drawSnow();
 
-    if (game.flash > 0.01) {
+    if (!REDUCED_MOTION && game.flash > 0.01) {
       ctx.fillStyle = 'rgba(255,255,255,' + (game.flash * 0.35).toFixed(3) + ')';
       ctx.fillRect(0, 0, W, H);
     }
@@ -4268,19 +5424,20 @@ body {
       let progress = liveDamage;
       let need = g && g.value ? g.value : 1;
       const phasePrefix = c.config.phases ? '阶段' + c.bossPhase + ' · ' : '';
-      let label = '第 ' + c.level + ' 关 · ' + phasePrefix + '伤害 ' + fmt(liveDamage) + '/' + fmt(need);
+      const levelHead = '第 ' + c.level + ' 关 · ' + c.config.name + ' · ' + phasePrefix;
+      let label = levelHead + '伤害 ' + fmt(liveDamage) + '/' + fmt(need);
       if (g && g.type === 'pins') {
         progress = c.pinsHit;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · ' + phasePrefix + '钉子 ' + progress + '/' + need;
+        label = levelHead + '钉子 ' + progress + '/' + need;
       } else if (g && g.type === 'gates') {
         progress = c.gatesHit;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · ' + phasePrefix + '门 ' + progress + '/' + need;
+        label = levelHead + '门 ' + progress + '/' + need;
       } else if (g && g.type === 'perfect') {
         progress = c.perfectHits;
         need = g.value;
-        label = '第 ' + c.level + ' 关 · ' + phasePrefix + 'PERFECT ' + progress + '/' + need;
+        label = levelHead + 'PERFECT ' + progress + '/' + need;
       }
       targetLabelEl.textContent = label;
       const pct = Math.min(100, (progress / Math.max(1, need)) * 100);

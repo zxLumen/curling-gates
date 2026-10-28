@@ -68,6 +68,7 @@ dist/curling-gates.html
 ## 当前实现（v0.8）
 
 - **两种模式**：**闯关模式（10 关独立关卡）**、爬塔模式（无限随机层）
+- **UI V2**：顶部状态带 + 目标进度 + 底部操作 dock；44px 触控目标、安全区、焦点态、`prefers-reduced-motion`；详见 [`docs/UI_DESIGN.md`](docs/UI_DESIGN.md)
 - **闯关目标**：每关目标可以是伤害 / 钉子 / 门；达标立即过关
 - **始终满力**：按住只瞄准，松手立即以旧版满力 **11.5 m/s** 投掷；取消蓄力、力度条、擦冰
 - **瞄准线**：直接画**预测轨迹**（按摩擦/旋转/透视投影），从冰壶经过手指并延伸；准星在手指处，旋转时线会弯
@@ -98,6 +99,7 @@ dist/curling-gates.html
 
 - [`docs/CAMPAIGN.md`](docs/CAMPAIGN.md)：10 关闯关设计（目标/布局/难度曲线/通关规则）
 - [`docs/LEVEL_TOOLING.md`](docs/LEVEL_TOOLING.md)：关卡设计工具调研（自研编辑器/模拟器/Tiled/LDtk 对比）
+- [`docs/UI_DESIGN.md`](docs/UI_DESIGN.md)：UI/UX 设计说明（移动端层级、触控、安全区、动效）
 - [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)：整体玩法设计（增益门 + 滚雪球）
 - [`docs/PROTOTYPE_SPEC.md`](docs/PROTOTYPE_SPEC.md)：可执行原型规格（物理参数、门数值、关卡布局、验收标准）
 - [`docs/TOWER_MODE.md`](docs/TOWER_MODE.md)：爬塔模式调研与设计（防御/三选一/冰球）
@@ -124,6 +126,7 @@ curling-gates/
 └─ docs/
    ├─ CAMPAIGN.md
    ├─ LEVEL_TOOLING.md
+   ├─ UI_DESIGN.md
    ├─ GAME_DESIGN.md
    ├─ PROTOTYPE_SPEC.md
    ├─ TOWER_MODE.md
@@ -139,9 +142,9 @@ curling-gates/
       ├─ campaign-boss.png
       ├─ campaign-clear.png
       ├─ campaign-fail.png
+      ├─ campaign-result.png
       ├─ aim-line.png
       ├─ curl.png
-      ├─ result.png
       ├─ tower-aim.png
       ├─ tower-clear.png
       ├─ tower-upgrade.png
