@@ -1,6 +1,7 @@
 # 回退说明
 
 当前基线：**v0.3 爽快模式**（tag：`v0.3-baseline`）。
+新功能：**v0.4 蓄力/重开/旋弧 + 爬塔模式**（tag：`v0.4-tower`）。
 
 ## 方式 1：Git 回退（推荐）
 
@@ -27,6 +28,12 @@ git diff master..feature/tower-mode
 
 ```bash
 git checkout master -- game.js
+```
+
+回到 v0.4 新功能：
+
+```bash
+git checkout feature/tower-mode
 ```
 
 ## 方式 2：独立备份
@@ -59,13 +66,14 @@ E:\Project\curling-gates\dist\curling-gates.html
 E:\Project\curling-gates-v0.3-backup\dist\curling-gates.html
 ```
 
-## 当前分支说明
+## 分支 / 标签
 
 | 分支 / 位置 | 内容 |
 |---|---|
 | `master` | v0.3 爽快模式基线 |
-| `feature/tower-mode` | 爬塔模式开发分支 |
-| `E:\Project\curling-gates-v0.3-backup` | 独立源码备份 |
-| tag `v0.3-baseline` | Git 基线标签 |
+| `feature/tower-mode` | v0.4 蓄力/重开 + 爬塔模式 |
+| tag `v0.3-baseline` | v0.3 Git 基线 |
+| tag `v0.4-tower` | v0.4 新功能快照 |
+| `E:\Project\curling-gates-v0.3-backup` | v0.3 独立源码备份 |
 
 > 新功能开发期间，`master` 不会被修改；随时可以切回。
