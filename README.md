@@ -9,6 +9,9 @@
 - 最终引擎：**Cocos Creator 3.8.7+**（原型只用于验证手感和数值，见 [`docs/ENGINE_DECISION.md`](docs/ENGINE_DECISION.md)）
 - 当前版本：v0.8 可玩原型（**10 关闯关** + 冰球爬塔，已通过浏览器 smoke test，见 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md)）
 
+**线上试玩**：<https://curling.zxlumen.cn/>（独立容器 `curling-web`，由本仓库 CI 构建推 GHCR，
+再经博客仓库的 Caddy 反代，见下方「线上部署」）
+
 ![闯关菜单](docs/screenshots/campaign-menu.png)
 
 ![选关](docs/screenshots/campaign-level-select.png)
@@ -109,6 +112,19 @@ dist/curling-gates.html
 - [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md)：最近一次浏览器实测记录
 - [`ROLLBACK.md`](ROLLBACK.md)：回退到 v0.3 基线的说明
 
+## 线上部署
+
+线上跑的是**纯静态容器**，不依赖博客主站镜像：
+
+1. 推 `main` → `.github/workflows/build.yml` 构建并推送
+   `ghcr.io/zxlumen/curling-web:<sha>` + `:latest`；
+2. 博客仓库 `zxLumen-Blog` 的 `docker/docker-compose.yml` 里 `curling` 服务拉该镜像，
+   `docker/caddy/sites/curling.caddy` 反代 `curling.<DOMAIN>`（子域路由以仓库为准）；
+3. `docker/deploy.sh` 会 `docker compose pull curling` 并滚动更新，Caddy 自动续证书。
+
+容器内是 `nginx:1.29-alpine`（`nginx.conf` 提供 `/healthz`，静态文件 no-cache），
+入口 `index.html` / `styles.css` / `game.js` 三个文件原样打进去 —— 改完推 `main` 即上线。
+
 ## 文件结构
 
 ```
@@ -121,6 +137,8 @@ curling-gates/
 ├─ build-single.mjs     生成单文件版
 ├─ play-single.cmd      双击生成并打开单文件版
 ├─ package.json         npm scripts，无依赖
+├─ Dockerfile           线上镜像（nginx:1.29-alpine 静态服务）
+├─ nginx.conf           容器内 nginx 配置（/healthz + no-cache）
 ├─ dist/                单文件试玩版（生成）
 ├─ README.md
 ├─ ROLLBACK.md          回退到 v0.3 基线
