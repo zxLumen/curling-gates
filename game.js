@@ -3569,7 +3569,6 @@
     }
     drawTrack();
     drawHouse();
-    if (isRunMode()) drawTowerMonster();
     drawGates();
     drawPins();
     drawStones();
